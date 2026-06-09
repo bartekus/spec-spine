@@ -3,7 +3,7 @@
 **A typed, hash-verifiable authority ledger over a markdown spec corpus.**
 Installable Rust library + CLI; API-first, binding-ready, deterministic.
 
-[![CI](https://github.com/spec-spine/spec-spine/actions/workflows/ci.yml/badge.svg)](https://github.com/spec-spine/spec-spine/actions/workflows/ci.yml)
+[![CI](https://github.com/bartekus/spec-spine/actions/workflows/ci.yml/badge.svg)](https://github.com/bartekus/spec-spine/actions/workflows/ci.yml)
 &nbsp;License: Apache-2.0
 
 spec-spine turns a markdown spec corpus into a governed, hash-verifiable
@@ -26,7 +26,7 @@ contents)`** — same inputs, byte-identical output, on every platform.
 ```sh
 cargo install spec-spine-cli                                           # from crates.io
 # or, no Rust toolchain:
-curl -fsSL https://raw.githubusercontent.com/spec-spine/spec-spine/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/bartekus/spec-spine/main/install.sh | sh
 # or, from this checkout:
 cargo install --path crates/spec-spine-cli
 ```
