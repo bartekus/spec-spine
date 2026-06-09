@@ -36,9 +36,12 @@ indexer_id  = "spec-spine"
 
 [coupling]
 # Additions to the built-in generic bypass floor (see couple.rs::DEFAULT_BYPASS_PREFIXES).
-# This list is ADDITIVE and cannot remove a floor entry, so it is left empty:
-# the floor already covers .github/, docs/, lockfiles, .derived/, etc.
-bypass_prefixes = []
+# This list is ADDITIVE and cannot remove a floor entry. The floor already covers
+# the root README.md, docs/, .github/, lockfiles, .derived/, etc.; we extend it to
+# per-crate READMEs (e.g. crates/*/README.md) — prose documentation lives inside
+# the crate dir, which manifest-metadata maps to the crate's spec, so without this
+# a README tweak would read as code drift. `**/README.md` = tail-suffix match.
+bypass_prefixes = ["**/README.md"]
 waiver_keyword = "Spec-Drift-Waiver:"
 
 [provenance.uri_schemes]

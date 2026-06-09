@@ -1,0 +1,106 @@
+name: release
+
+# Tag-gated prebuilt-binary release. Pushing a `v*` tag builds a per-triple
+# archive (with a .sha256 sidecar) for each of the five supported targets and
+# attaches them to the GitHub Release. install.sh (curl | sh) consumes these.
+#
+# Every triple builds NATIVELY on a GitHub-hosted runner of the matching arch —
+# no cross-toolchain — so the binaries are exactly what the determinism workflow
+# proves emit byte-identical artifacts.
+#
+# Per-archive CycloneDX SBOM is deferred (see docs/design/00-architecture.md §11,
+# Q7): it adds nontrivial per-leg tooling for low v1 value. Add on request.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: build · ${{ matrix.triple }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,    triple: x86_64-unknown-linux-gnu }
+          - { os: ubuntu-24.04-arm, triple: aarch64-unknown-linux-gnu }
+          - { os: macos-13,         triple: x86_64-apple-darwin }
+          - { os: macos-latest,     triple: aarch64-apple-darwin }
+          - { os: windows-latest,   triple: x86_64-pc-windows-msvc }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add target (no-op if native)
+        run: rustup target add ${{ matrix.triple }}
+      - name: Build release binary
+        run: cargo build --release --locked --bin spec-spine --target ${{ matrix.triple }}
+
+      - name: Stage archive contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXT=""; [ "${{ runner.os }}" = "Windows" ] && EXT=".exe"
+          mkdir -p staging
+          cp "target/${{ matrix.triple }}/release/spec-spine${EXT}" staging/
+          cp LICENSE README.md staging/
+          echo "ARCHIVE_BASE=spec-spine-${GITHUB_REF_NAME}-${{ matrix.triple }}" >> "$GITHUB_ENV"
+
+      - name: Package (tar.gz + sha256) — Unix
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -C staging -czf "${ARCHIVE_BASE}.tar.gz" .
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "${ARCHIVE_BASE}.tar.gz" > "${ARCHIVE_BASE}.tar.gz.sha256"
+          else
+            shasum -a 256 "${ARCHIVE_BASE}.tar.gz" > "${ARCHIVE_BASE}.tar.gz.sha256"
+          fi
+          cat "${ARCHIVE_BASE}.tar.gz.sha256"
+
+      - name: Package (zip + sha256) — Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $base = $env:ARCHIVE_BASE
+          Compress-Archive -Path staging/* -DestinationPath "$base.zip" -Force
+          $hash = (Get-FileHash "$base.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $base.zip" | Out-File -Encoding ascii -NoNewline "$base.zip.sha256"
+          Get-Content "$base.zip.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: archive-${{ matrix.triple }}
+          path: |
+            spec-spine-*.tar.gz
+            spec-spine-*.tar.gz.sha256
+            spec-spine-*.zip
+            spec-spine-*.zip.sha256
+          if-no-files-found: error
+
+  publish:
+    name: publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: archive-*
+          merge-multiple: true
+      - name: List release assets
+        run: ls -la dist
+      - name: Create / update the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          fail_on_unmatched_files: true
+          generate_release_notes: true
