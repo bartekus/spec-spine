@@ -115,6 +115,19 @@ pub struct SpecRecord {
     pub extra_frontmatter: BTreeMap<String, ExtraValue>,
 }
 
+/// Non-deterministic build metadata sidecar (`build-meta.json`). The wall-clock
+/// `built_at` lives here, never in `registry.json`, and is excluded from every
+/// determinism/golden check. The CLI populates `built_at`; the library never
+/// reads the clock.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BuildMeta {
+    pub schema_version: String,
+    pub built_at: String,
+    pub compiler_id: String,
+    pub compiler_version: String,
+}
+
 /// Severity tier of a diagnostic.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

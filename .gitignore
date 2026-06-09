@@ -5,6 +5,9 @@
 # NOTE: .derived/ (compiler/indexer output) is intentionally NOT ignored — it is
 # committed so the coupling gate and content-hash staleness check can compare the
 # committed registry/index against current inputs. Determinism makes this sane.
+# The one exception: build-meta.json carries a wall-clock `builtAt` (the sole
+# non-deterministic artifact), so it would churn on every compile — ignore it.
+.derived/**/build-meta.json
 
 # OS / editor cruft
 .DS_Store

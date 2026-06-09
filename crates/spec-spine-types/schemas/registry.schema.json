@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-spine.dev/schemas/registry.schema.json",
+  "title": "spec-spine registry (spec-as-source view)",
+  "description": "The deterministic output of `spec-spine compile`. Schema version is library-owned (see spec-spine-types::REGISTRY_SCHEMA_VERSION). v1 validates the structural envelope and the required core fields; the typed-edge payload is intentionally permissive (additionalProperties) so an additive minor can extend it.",
+  "type": "object",
+  "required": ["specVersion", "build", "specs", "validation"],
+  "additionalProperties": false,
+  "properties": {
+    "specVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "build": {
+      "type": "object",
+      "required": ["compilerId", "compilerVersion", "inputRoot", "contentHash"],
+      "additionalProperties": false,
+      "properties": {
+        "compilerId": { "type": "string", "minLength": 1 },
+        "compilerVersion": { "type": "string", "minLength": 1 },
+        "inputRoot": { "type": "string" },
+        "contentHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "specs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/specRecord" }
+    },
+    "validation": {
+      "type": "object",
+      "required": ["passed", "violations"],
+      "additionalProperties": false,
+      "properties": {
+        "passed": { "type": "boolean" },
+        "violations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/violation" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "specRecord": {
+      "type": "object",
+      "required": ["id", "title", "status", "created", "summary", "specPath"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[0-9]{3}-[a-z0-9]+(-[a-z0-9]+)*$" },
+        "title": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["draft", "approved", "superseded", "retired"] },
+        "created": { "type": "string" },
+        "summary": { "type": "string" },
+        "specPath": { "type": "string", "pattern": "^.+/spec\\.md$" },
+        "risk": { "enum": ["low", "medium", "high", "critical"] },
+        "implementation": {
+          "enum": ["pending", "in-progress", "complete", "n-a", "deferred"]
+        }
+      }
+    },
+    "violation": {
+      "type": "object",
+      "required": ["code", "severity", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "code": { "type": "string", "pattern": "^[A-Z]-[0-9]{3}$" },
+        "severity": { "enum": ["error", "warning", "info"] },
+        "message": { "type": "string", "minLength": 1 },
+        "path": { "type": "string" }
+      }
+    }
+  }
+}

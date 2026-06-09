@@ -1,0 +1,150 @@
+{
+  "build": {
+    "compilerId": "spec-spine",
+    "compilerVersion": "0.1.0",
+    "contentHash": "aa421362ff859ffb40f70ce8dd936994168f1ea3744da8682088a1d2c2ce0deb",
+    "inputRoot": "."
+  },
+  "specVersion": "0.1.0",
+  "specs": [
+    {
+      "authors": [
+        "The spec-spine Authors"
+      ],
+      "created": "2026-06-08",
+      "id": "000-spec-spine-bootstrap",
+      "kind": "constitutional-bootstrap",
+      "origin": {
+        "retroactive": true
+      },
+      "sectionHeadings": [
+        "000 — Bootstrap spec system",
+        "1. The authoring/derived boundary",
+        "2. Identity: directory name equals id",
+        "3. Frontmatter grammar",
+        "4. The typed authority graph",
+        "4.1 Edges — eight types, seven ownership-bearing",
+        "4.2 Authority units — file, section, symbol (v1)",
+        "4.3 Resolution and amends-awareness",
+        "5. The compiled artifacts",
+        "6. Determinism",
+        "7. The guardrails",
+        "8. Bootstrap order",
+        "9. Status"
+      ],
+      "specPath": "specs/000-spec-spine-bootstrap/spec.md",
+      "status": "approved",
+      "summary": "Foundational contract for spec-spine. Authored truth lives only in markdown (with YAML frontmatter); machine-consumable truth is compiler-emitted JSON only; the corpus compiles in full from day one; every artifact-producing step is a pure, deterministic function of (config, file contents); and a typed authority graph — not a flat pile of claims — governs who may change what. This spec defines what a spec IS. It is tier-1: its `unamendable` anchors are non-overridable, and it bootstraps the corpus by declaring authority it has held since before the graph existed (`origin.retroactive`).\n",
+      "title": "Bootstrap spec system (markdown → compiled JSON authority ledger)",
+      "unamendable": [
+        "markdown-truth-boundary",
+        "json-truth-boundary",
+        "determinism-requirement",
+        "directory-name-equals-id",
+        "typed-authority-graph",
+        "refusal-rule"
+      ]
+    },
+    {
+      "created": "2026-06-08",
+      "dependsOn": [
+        "000-spec-spine-bootstrap"
+      ],
+      "establishes": [
+        {
+          "kind": "file",
+          "path": "crates/spec-spine-core/src/lib.rs"
+        },
+        {
+          "kind": "file",
+          "path": "crates/spec-spine-core/src/compile.rs"
+        },
+        {
+          "kind": "file",
+          "path": "crates/spec-spine-core/src/hash.rs"
+        },
+        {
+          "kind": "file",
+          "path": "crates/spec-spine-core/src/canonical_json.rs"
+        },
+        {
+          "kind": "file",
+          "path": "crates/spec-spine-core/src/markdown.rs"
+        },
+        {
+          "kind": "file",
+          "path": "crates/spec-spine-cli/src/main.rs"
+        },
+        {
+          "kind": "file",
+          "path": "crates/spec-spine-cli/src/cmd_compile.rs"
+        }
+      ],
+      "id": "001-compile-registry",
+      "implementation": "complete",
+      "kind": "tooling",
+      "owner": "The spec-spine Authors",
+      "sectionHeadings": [
+        "001 — Compile the spec corpus into a deterministic registry",
+        "1. Purpose",
+        "2. Territory",
+        "3. Behavior",
+        "3.1 Discovery and parsing",
+        "3.2 Validation (V-codes)",
+        "3.3 The registry record",
+        "3.4 Determinism",
+        "3.5 CLI",
+        "4. Out of scope"
+      ],
+      "specPath": "specs/001-compile-registry/spec.md",
+      "status": "approved",
+      "summary": "The compile capability: read every specs/NNN-slug/spec.md, validate its frontmatter, and emit a deterministic spec-as-source registry.json plus a non-deterministic build-meta.json. Establishes the spec-spine-core engine scaffolding (content hashing, canonical JSON, markdown heading extraction) and the `spec-spine compile` CLI subcommand.\n",
+      "title": "Compile the spec corpus into a deterministic registry"
+    },
+    {
+      "created": "2026-06-08",
+      "dependsOn": [
+        "001-compile-registry"
+      ],
+      "establishes": [
+        {
+          "kind": "file",
+          "path": "crates/spec-spine-core/src/query.rs"
+        },
+        {
+          "kind": "file",
+          "path": "crates/spec-spine-cli/src/cmd_registry.rs"
+        }
+      ],
+      "extends": [
+        {
+          "nature": "additive",
+          "spec": "001-compile-registry",
+          "unit": {
+            "kind": "file",
+            "path": "crates/spec-spine-core/src/lib.rs"
+          }
+        }
+      ],
+      "id": "002-registry-query",
+      "implementation": "complete",
+      "kind": "tooling",
+      "owner": "The spec-spine Authors",
+      "sectionHeadings": [
+        "002 — Typed read-only query over the registry",
+        "1. Purpose",
+        "2. Territory",
+        "3. Behavior",
+        "4. Out of scope"
+      ],
+      "specPath": "specs/002-registry-query/spec.md",
+      "status": "approved",
+      "summary": "The query capability: typed, read-only access over a loaded registry — list, show, status-report, and relationships — plus load_registry (which rejects an unknown MAJOR schema version). Establishes the query module and the `spec-spine registry` CLI subcommands; extends 001's public surface additively.\n",
+      "title": "Typed read-only query over the registry"
+    }
+  ],
+  "validation": {
+    "passed": true,
+    "violations": []
+  }
+}

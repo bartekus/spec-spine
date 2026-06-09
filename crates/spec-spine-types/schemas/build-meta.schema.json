@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-spine.dev/schemas/build-meta.schema.json",
+  "title": "spec-spine build metadata",
+  "description": "Non-deterministic sidecar written alongside registry.json. Carries the wall-clock `builtAt`; explicitly excluded from determinism/golden checks.",
+  "type": "object",
+  "required": ["schemaVersion", "builtAt"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "builtAt": { "type": "string", "minLength": 1 },
+    "compilerId": { "type": "string" },
+    "compilerVersion": { "type": "string" }
+  }
+}

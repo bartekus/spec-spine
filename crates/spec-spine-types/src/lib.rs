@@ -24,6 +24,7 @@ pub mod edges;
 pub mod error;
 pub mod frontmatter;
 pub mod registry;
+pub mod schema;
 pub mod unit;
 pub mod version;
 
@@ -41,7 +42,8 @@ pub use frontmatter::{
     ExtraValue, Frontmatter, Implementation, KNOWN_KEYS, Risk, Status, parse_frontmatter,
     split_frontmatter,
 };
-pub use registry::{Build, Registry, Severity, SpecRecord, ValidationReport, Violation};
+pub use registry::{Build, BuildMeta, Registry, Severity, SpecRecord, ValidationReport, Violation};
+pub use schema::{BUILD_META_SCHEMA, REGISTRY_SCHEMA};
 pub use unit::Unit;
 pub use version::{
     BUILD_META_SCHEMA_VERSION, CONFIG_VERSION, INDEX_SCHEMA_VERSION, REGISTRY_SCHEMA_VERSION,
