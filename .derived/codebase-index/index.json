@@ -1,6 +1,6 @@
 {
   "build": {
-    "contentHash": "b46eef307d927c10909686cf437219833b5c1d20ae32cf9405edb3f3e173857a",
+    "contentHash": "092cbef54cd939c31306c7568f97617c9be0c9bb3934176765ebb57be7ce71f3",
     "indexerId": "spec-spine",
     "indexerVersion": "0.2.0",
     "repoRoot": "."
@@ -36,7 +36,7 @@
       "version": "0.2.0"
     }
   ],
-  "schemaVersion": "0.1.0",
+  "schemaVersion": "0.2.0",
   "traceability": {
     "mappings": [
       {
@@ -1008,6 +1008,170 @@
           }
         ],
         "specId": "011-index-render-orphans",
+        "specStatus": "draft"
+      },
+      {
+        "dependsOn": [
+          "004-codebase-index"
+        ],
+        "implementingPaths": [
+          {
+            "path": "crates/spec-spine-cli/src/cmd_index.rs",
+            "source": "spec-edge"
+          },
+          {
+            "path": "crates/spec-spine-cli/tests/cli.rs",
+            "source": "spec-edge"
+          },
+          {
+            "path": "crates/spec-spine-core/src/index.rs",
+            "source": "spec-edge"
+          },
+          {
+            "path": "crates/spec-spine-core/src/lib.rs",
+            "source": "spec-edge"
+          },
+          {
+            "path": "crates/spec-spine-types/schemas/codebase-index.schema.json",
+            "source": "spec-edge"
+          },
+          {
+            "path": "crates/spec-spine-types/src/codebase.rs",
+            "source": "spec-edge"
+          },
+          {
+            "path": "crates/spec-spine-types/src/config.rs",
+            "source": "spec-edge"
+          },
+          {
+            "path": "crates/spec-spine-types/src/version.rs",
+            "source": "spec-edge"
+          },
+          {
+            "path": "crates/spec-spine-types/tests/dtos.rs",
+            "source": "spec-edge"
+          }
+        ],
+        "resolvedUnits": [
+          {
+            "locations": [
+              {
+                "file": "crates/spec-spine-cli/src/cmd_index.rs"
+              }
+            ],
+            "ownership": true,
+            "sourceField": "extends",
+            "unit": {
+              "kind": "file",
+              "path": "crates/spec-spine-cli/src/cmd_index.rs"
+            }
+          },
+          {
+            "locations": [
+              {
+                "file": "crates/spec-spine-cli/tests/cli.rs"
+              }
+            ],
+            "ownership": true,
+            "sourceField": "extends",
+            "unit": {
+              "kind": "file",
+              "path": "crates/spec-spine-cli/tests/cli.rs"
+            }
+          },
+          {
+            "locations": [
+              {
+                "file": "crates/spec-spine-core/src/index.rs"
+              }
+            ],
+            "ownership": true,
+            "sourceField": "extends",
+            "unit": {
+              "kind": "file",
+              "path": "crates/spec-spine-core/src/index.rs"
+            }
+          },
+          {
+            "locations": [
+              {
+                "file": "crates/spec-spine-core/src/lib.rs"
+              }
+            ],
+            "ownership": true,
+            "sourceField": "extends",
+            "unit": {
+              "kind": "file",
+              "path": "crates/spec-spine-core/src/lib.rs"
+            }
+          },
+          {
+            "locations": [
+              {
+                "file": "crates/spec-spine-types/schemas/codebase-index.schema.json"
+              }
+            ],
+            "ownership": true,
+            "sourceField": "extends",
+            "unit": {
+              "kind": "file",
+              "path": "crates/spec-spine-types/schemas/codebase-index.schema.json"
+            }
+          },
+          {
+            "locations": [
+              {
+                "file": "crates/spec-spine-types/src/codebase.rs"
+              }
+            ],
+            "ownership": true,
+            "sourceField": "extends",
+            "unit": {
+              "kind": "file",
+              "path": "crates/spec-spine-types/src/codebase.rs"
+            }
+          },
+          {
+            "locations": [
+              {
+                "file": "crates/spec-spine-types/src/config.rs"
+              }
+            ],
+            "ownership": true,
+            "sourceField": "extends",
+            "unit": {
+              "kind": "file",
+              "path": "crates/spec-spine-types/src/config.rs"
+            }
+          },
+          {
+            "locations": [
+              {
+                "file": "crates/spec-spine-types/src/version.rs"
+              }
+            ],
+            "ownership": true,
+            "sourceField": "extends",
+            "unit": {
+              "kind": "file",
+              "path": "crates/spec-spine-types/src/version.rs"
+            }
+          },
+          {
+            "locations": [
+              {
+                "file": "crates/spec-spine-types/tests/dtos.rs"
+              }
+            ],
+            "ownership": true,
+            "sourceField": "extends",
+            "unit": {
+              "kind": "file",
+              "path": "crates/spec-spine-types/tests/dtos.rs"
+            }
+          }
+        ],
+        "specId": "012-index-hash-slices",
         "specStatus": "draft"
       }
     ],

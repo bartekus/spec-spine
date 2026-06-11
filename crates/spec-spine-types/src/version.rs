@@ -14,7 +14,8 @@
 pub const REGISTRY_SCHEMA_VERSION: &str = "0.1.0";
 
 /// `schemaVersion` emitted in `index.json`. (Index DTOs land in Phase 3.)
-pub const INDEX_SCHEMA_VERSION: &str = "0.1.0";
+/// `0.2.0`: additive `build.sliceHashes` (spec 012).
+pub const INDEX_SCHEMA_VERSION: &str = "0.2.0";
 
 /// `schemaVersion` emitted in `build-meta.json` (the non-deterministic artifact).
 pub const BUILD_META_SCHEMA_VERSION: &str = "0.1.0";

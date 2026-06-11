@@ -16,7 +16,12 @@
         "indexerId": { "type": "string", "minLength": 1 },
         "indexerVersion": { "type": "string", "minLength": 1 },
         "repoRoot": { "type": "string" },
-        "contentHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        "contentHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "sliceHashes": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z0-9][a-z0-9-]*$" },
+          "additionalProperties": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
       }
     },
     "packages": {

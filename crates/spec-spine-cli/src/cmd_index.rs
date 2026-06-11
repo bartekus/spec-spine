@@ -7,7 +7,8 @@ use std::path::Path;
 
 use clap::Subcommand;
 use spec_spine_core::{
-    Freshness, check_index_freshness, index, load_index, orphans, render_markdown,
+    Freshness, check_index_freshness, check_slice_freshness, index, load_index, orphans,
+    render_markdown,
 };
 use spec_spine_types::{CodebaseIndex, Config, Error};
 
@@ -16,7 +17,11 @@ use crate::load_repo_config;
 #[derive(Subcommand)]
 pub enum IndexAction {
     /// Check the committed index against current inputs (the staleness gate).
-    Check,
+    Check {
+        /// Gate one named [index.slices] slice instead of the global hash.
+        #[arg(long, value_name = "NAME")]
+        slice: Option<String>,
+    },
     /// Render the committed index as markdown (a projection; never recomputes).
     Render,
     /// List orphaned specs from the committed index.
@@ -66,18 +71,27 @@ pub fn run(repo: &Path, action: Option<&IndexAction>) -> Result<u8, Error> {
             }
             Ok(0)
         }
-        Some(IndexAction::Check) => match check_index_freshness(&cfg, repo)? {
-            Freshness::Fresh => {
-                println!("index is fresh");
-                Ok(0)
+        Some(IndexAction::Check { slice }) => {
+            let (freshness, subject) = match slice {
+                Some(name) => (
+                    check_slice_freshness(&cfg, repo, name)?,
+                    format!("slice '{name}'"),
+                ),
+                None => (check_index_freshness(&cfg, repo)?, "index".to_string()),
+            };
+            match freshness {
+                Freshness::Fresh => {
+                    println!("{subject} is fresh");
+                    Ok(0)
+                }
+                Freshness::Stale { expected, actual } => {
+                    eprintln!("{subject} is STALE (run `spec-spine index` to refresh)");
+                    eprintln!("  expected content-hash: {expected}");
+                    eprintln!("  actual content-hash:   {actual}");
+                    Ok(2)
+                }
             }
-            Freshness::Stale { expected, actual } => {
-                eprintln!("index is STALE (run `spec-spine index` to refresh)");
-                eprintln!("  expected content-hash: {expected}");
-                eprintln!("  actual content-hash:   {actual}");
-                Ok(2)
-            }
-        },
+        }
         None => {
             let outcome = index(&cfg, repo)?;
             let out_dir = repo.join(&cfg.layout.derived_dir).join("codebase-index");

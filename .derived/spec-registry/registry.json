@@ -2,7 +2,7 @@
   "build": {
     "compilerId": "spec-spine",
     "compilerVersion": "0.2.0",
-    "contentHash": "12206dab05175cc88634065ded1f8d3dabab78939bb461c6abd8158f975fa921",
+    "contentHash": "30c652918abc589c763a2b4d3eb05441f1b663fd845a00e0b11315a69d93a3d8",
     "inputRoot": "."
   },
   "specVersion": "0.1.0",
@@ -578,6 +578,106 @@
       "status": "draft",
       "summary": "Implements the two subcommands spec 004's CLI reserved but stubbed: `spec-spine index render` (a deterministic human-shaped markdown projection of the committed index.json -- package inventory, traceability, diagnostics) and `spec-spine index orphans` (the orphanedSpecs list, newline ids or a --json array). Both are pure read-side projections of the committed artifact; neither recomputes the index. Establishes the render module; extends the index CLI dispatch.\n",
       "title": "Index: implement the reserved render and orphans subcommands"
+    },
+    {
+      "created": "2026-06-11",
+      "dependsOn": [
+        "004-codebase-index"
+      ],
+      "extends": [
+        {
+          "nature": "additive",
+          "spec": "004-codebase-index",
+          "unit": {
+            "kind": "file",
+            "path": "crates/spec-spine-core/src/index.rs"
+          }
+        },
+        {
+          "nature": "additive",
+          "spec": "004-codebase-index",
+          "unit": {
+            "kind": "file",
+            "path": "crates/spec-spine-cli/src/cmd_index.rs"
+          }
+        },
+        {
+          "nature": "additive",
+          "spec": "000-spec-spine-bootstrap",
+          "unit": {
+            "kind": "file",
+            "path": "crates/spec-spine-types/src/config.rs"
+          }
+        },
+        {
+          "nature": "additive",
+          "spec": "000-spec-spine-bootstrap",
+          "unit": {
+            "kind": "file",
+            "path": "crates/spec-spine-types/src/codebase.rs"
+          }
+        },
+        {
+          "nature": "additive",
+          "spec": "000-spec-spine-bootstrap",
+          "unit": {
+            "kind": "file",
+            "path": "crates/spec-spine-types/src/version.rs"
+          }
+        },
+        {
+          "nature": "additive",
+          "spec": "000-spec-spine-bootstrap",
+          "unit": {
+            "kind": "file",
+            "path": "crates/spec-spine-types/schemas/codebase-index.schema.json"
+          }
+        },
+        {
+          "nature": "additive",
+          "spec": "000-spec-spine-bootstrap",
+          "unit": {
+            "kind": "file",
+            "path": "crates/spec-spine-types/tests/dtos.rs"
+          }
+        },
+        {
+          "nature": "additive",
+          "spec": "001-compile-registry",
+          "unit": {
+            "kind": "file",
+            "path": "crates/spec-spine-core/src/lib.rs"
+          }
+        },
+        {
+          "nature": "additive",
+          "spec": "001-compile-registry",
+          "unit": {
+            "kind": "file",
+            "path": "crates/spec-spine-cli/tests/cli.rs"
+          }
+        }
+      ],
+      "id": "012-index-hash-slices",
+      "implementation": "complete",
+      "kind": "tooling",
+      "owner": "The spec-spine Authors",
+      "sectionHeadings": [
+        "012: Named hash slices",
+        "1. Purpose",
+        "2. Territory",
+        "3. Behavior",
+        "3.1 Config",
+        "3.2 Emission",
+        "3.3 `index check --slice <name>`",
+        "3.4 Determinism",
+        "3.5 Tests (minimum)",
+        "4. Out of scope"
+      ],
+      "specPath": "specs/012-index-hash-slices/spec.md",
+      "status": "draft",
+      "summary": "Named sub-hashes of the index's input set: an adopter declares glob groups under `[index.slices]`, the indexer emits a per-slice content hash into `build.sliceHashes` (additive index-schema MINOR), and `spec-spine index check --slice <name>` gates on exactly that slice -- fresh (0), stale (2), config/IO error (3). Generalizes the narrow high-value staleness gate OAP runs over its agent-config files (settings/MCP JSON) without hardcoding any adopter's file list into the core.\n",
+      "title": "Index: named hash slices and `index check --slice <name>`"
     }
   ],
   "validation": {
