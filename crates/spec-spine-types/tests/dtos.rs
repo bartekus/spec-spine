@@ -68,9 +68,10 @@ fn validation_passed_follows_error_tier() {
 }
 
 #[test]
-fn schema_versions_start_fresh_at_0_1_0() {
+fn schema_versions_are_pinned() {
     assert_eq!(REGISTRY_SCHEMA_VERSION, "0.1.0");
-    assert_eq!(INDEX_SCHEMA_VERSION, "0.1.0");
+    // 0.2.0: additive `build.sliceHashes` (spec 012).
+    assert_eq!(INDEX_SCHEMA_VERSION, "0.2.0");
     assert_eq!(BUILD_META_SCHEMA_VERSION, "0.1.0");
     assert_eq!(CONFIG_VERSION, "0.1.0");
 }

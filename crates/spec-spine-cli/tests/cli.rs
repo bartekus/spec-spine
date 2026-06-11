@@ -24,6 +24,126 @@ fn code(out: &std::process::Output) -> i32 {
 }
 
 #[test]
+fn index_slice_hashes_and_check() {
+    let tmp = tempfile::tempdir().unwrap();
+    write_spec(tmp.path(), "001-a", "001-a", "approved");
+    fs::create_dir_all(tmp.path().join("conf")).unwrap();
+    fs::write(tmp.path().join("conf/a.json"), "{\"a\":1}\n").unwrap();
+    fs::write(tmp.path().join("conf/b.json"), "{\"b\":2}\n").unwrap();
+    let run = |args: &[&str]| {
+        let out = bin().arg("--repo").arg(tmp.path()).args(args).output();
+        out.unwrap()
+    };
+    let index_json =
+        || fs::read_to_string(tmp.path().join(".derived/codebase-index/index.json")).unwrap();
+
+    // No slices configured: field absent; --slice is a config error (3).
+    assert_eq!(code(&run(&["index"])), 0);
+    assert!(!index_json().contains("sliceHashes"));
+    assert_eq!(
+        code(&run(&["index", "check", "--slice", "agent-config"])),
+        3,
+        "unknown slice name -> 3"
+    );
+
+    // Slices configured AFTER the committed index: missing entry -> stale.
+    fs::write(
+        tmp.path().join("spec-spine.toml"),
+        "[index.slices]\nzz-last = [\"conf/b.json\"]\nagent-config = [\"conf/a.json\", \"conf/missing.json\"]\n",
+    )
+    .unwrap();
+    assert_eq!(
+        code(&run(&["index", "check", "--slice", "agent-config"])),
+        2,
+        "an index predating the slice config is not vouching for it"
+    );
+
+    // Rebuild: entries emitted key-sorted; both slices fresh.
+    assert_eq!(code(&run(&["index"])), 0);
+    let raw = index_json();
+    assert!(raw.contains("sliceHashes"));
+    assert!(
+        raw.find("agent-config").unwrap() < raw.find("zz-last").unwrap(),
+        "sliceHashes keys are sorted"
+    );
+    assert_eq!(
+        code(&run(&["index", "check", "--slice", "agent-config"])),
+        0
+    );
+    assert_eq!(code(&run(&["index", "check", "--slice", "zz-last"])), 0);
+    assert_eq!(code(&run(&["index", "check"])), 0);
+
+    // Independence: a slice-only file's edit trips its slice, not the global
+    // gate and not the other slice.
+    fs::write(tmp.path().join("conf/a.json"), "{\"a\":99}\n").unwrap();
+    assert_eq!(code(&run(&["index", "check"])), 0, "global gate unaffected");
+    assert_eq!(
+        code(&run(&["index", "check", "--slice", "agent-config"])),
+        2
+    );
+    assert_eq!(code(&run(&["index", "check", "--slice", "zz-last"])), 0);
+
+    // ...and vice versa: a global-input edit leaves the slices fresh.
+    write_spec(tmp.path(), "001-a", "001-a", "draft");
+    assert_eq!(
+        code(&run(&["index", "check"])),
+        2,
+        "spec.md is global input"
+    );
+    assert_eq!(code(&run(&["index", "check", "--slice", "zz-last"])), 0);
+
+    // Deletion of a guarded file is a hash change, not a config error.
+    assert_eq!(code(&run(&["index"])), 0);
+    fs::remove_file(tmp.path().join("conf/b.json")).unwrap();
+    assert_eq!(code(&run(&["index", "check", "--slice", "zz-last"])), 2);
+
+    // Unknown name with slices configured is still 3.
+    assert_eq!(code(&run(&["index", "check", "--slice", "nope"])), 3);
+}
+
+#[test]
+fn invalid_slice_config_exits_3() {
+    let tmp = tempfile::tempdir().unwrap();
+    write_spec(tmp.path(), "001-a", "001-a", "approved");
+
+    // Name outside [a-z0-9][a-z0-9-]*.
+    fs::write(
+        tmp.path().join("spec-spine.toml"),
+        "[index.slices]\n\"Bad_Name\" = [\"conf/*.json\"]\n",
+    )
+    .unwrap();
+    assert_eq!(
+        code(
+            &bin()
+                .arg("--repo")
+                .arg(tmp.path())
+                .arg("index")
+                .output()
+                .unwrap()
+        ),
+        3
+    );
+
+    // Empty glob list.
+    fs::write(
+        tmp.path().join("spec-spine.toml"),
+        "[index.slices]\nok = []\n",
+    )
+    .unwrap();
+    assert_eq!(
+        code(
+            &bin()
+                .arg("--repo")
+                .arg(tmp.path())
+                .arg("index")
+                .output()
+                .unwrap()
+        ),
+        3
+    );
+}
+
+#[test]
 fn compile_ok_then_queries() {
     let tmp = tempfile::tempdir().unwrap();
     write_spec(tmp.path(), "001-a", "001-a", "approved");

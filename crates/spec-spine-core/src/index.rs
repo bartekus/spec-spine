@@ -195,6 +195,7 @@ pub fn index(cfg: &spec_spine_types::Config, repo_root: &Path) -> Result<IndexOu
             indexer_version: env!("CARGO_PKG_VERSION").to_string(),
             repo_root: ".".to_string(),
             content_hash,
+            slice_hashes: compute_slice_hashes(cfg, repo_root),
         },
         packages: discovered.packages,
         traceability: Traceability {
@@ -216,17 +217,7 @@ pub fn check_index_freshness(
     cfg: &spec_spine_types::Config,
     repo_root: &Path,
 ) -> Result<Freshness, Error> {
-    let index_path = repo_root
-        .join(&cfg.layout.derived_dir)
-        .join("codebase-index")
-        .join("index.json");
-    let bytes = fs::read(&index_path).map_err(|e| {
-        Error::Io(format!(
-            "read {} (run `spec-spine index` first?): {e}",
-            index_path.display()
-        ))
-    })?;
-    let committed = crate::load_index(&bytes)?;
+    let committed = read_committed_index(cfg, repo_root)?;
 
     // Blocking resolver diagnostics also fail freshness.
     if committed
@@ -262,6 +253,37 @@ pub fn check_index_freshness(
     }
 }
 
+/// Recompute one named slice and compare it to the committed
+/// `build.sliceHashes` entry (spec 012 §3.3). A single-subject gate: it never
+/// consults the global hash or diagnostics. Unknown name → [`Error::Config`]
+/// (exit 3); a committed index with no entry for a configured slice is
+/// `Stale`, not an error — an index predating the slice config is by
+/// definition not vouching for it.
+pub fn check_slice_freshness(
+    cfg: &spec_spine_types::Config,
+    repo_root: &Path,
+    name: &str,
+) -> Result<Freshness, Error> {
+    let Some(patterns) = cfg.index.slices.get(name) else {
+        return Err(Error::Config(format!(
+            "unknown slice '{name}' (declare it under [index.slices] in spec-spine.toml)"
+        )));
+    };
+    let committed = read_committed_index(cfg, repo_root)?;
+    let actual = slice_hash(repo_root, patterns);
+    match committed.build.slice_hashes.get(name) {
+        Some(expected) if *expected == actual => Ok(Freshness::Fresh),
+        Some(expected) => Ok(Freshness::Stale {
+            expected: expected.clone(),
+            actual,
+        }),
+        None => Ok(Freshness::Stale {
+            expected: "(no committed sliceHashes entry)".to_string(),
+            actual,
+        }),
+    }
+}
+
 /// "Who currently owns this unit?" — a set query over resolved traceability.
 pub fn authorities(index: &CodebaseIndex, unit: &Unit) -> Vec<String> {
     let mut owners: BTreeSet<String> = BTreeSet::new();
@@ -281,6 +303,54 @@ pub fn authorities(index: &CodebaseIndex, unit: &Unit) -> Vec<String> {
 }
 
 // ===== helpers =====
+
+/// Read and parse the committed `index.json`.
+fn read_committed_index(
+    cfg: &spec_spine_types::Config,
+    repo_root: &Path,
+) -> Result<CodebaseIndex, Error> {
+    let index_path = repo_root
+        .join(&cfg.layout.derived_dir)
+        .join("codebase-index")
+        .join("index.json");
+    let bytes = fs::read(&index_path).map_err(|e| {
+        Error::Io(format!(
+            "read {} (run `spec-spine index` first?): {e}",
+            index_path.display()
+        ))
+    })?;
+    crate::load_index(&bytes)
+}
+
+/// One `build.sliceHashes` entry per configured slice (spec 012 §3.2).
+fn compute_slice_hashes(
+    cfg: &spec_spine_types::Config,
+    repo_root: &Path,
+) -> BTreeMap<String, String> {
+    cfg.index
+        .slices
+        .iter()
+        .map(|(name, patterns)| (name.clone(), slice_hash(repo_root, patterns)))
+        .collect()
+}
+
+/// SHA-256 over a slice's matched files: the same normalization and
+/// path-sorted folding as the global hash. Zero matches hash the empty input
+/// sequence — deletion of a guarded file reads as a hash change, never a
+/// config error.
+fn slice_hash(repo_root: &Path, patterns: &[String]) -> String {
+    let mut pieces: Vec<(String, String)> = Vec::new();
+    for pattern in patterns {
+        for file in glob_files(repo_root, pattern) {
+            if let Ok(content) = fs::read_to_string(&file) {
+                pieces.push((rel_posix(repo_root, &file), content));
+            }
+        }
+    }
+    pieces.sort_by(|a, b| a.0.cmp(&b.0));
+    pieces.dedup_by(|a, b| a.0 == b.0);
+    hash::content_hash(pieces)
+}
 
 fn discover_specs(
     cfg: &spec_spine_types::Config,

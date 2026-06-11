@@ -120,6 +120,12 @@ pub struct IndexConfig {
     pub extra_hashed_inputs: Vec<String>,
     /// Directory names pruned from symbol/section resolution walks.
     pub resolver_exclusions: Vec<String>,
+    /// `[index.slices]` (spec 012): named glob groups, each emitted as a
+    /// `build.sliceHashes` entry and gated by `index check --slice <name>`.
+    /// Names match `[a-z0-9][a-z0-9-]*`; each list is non-empty, with
+    /// `extra_hashed_inputs` pattern semantics. Slices are independent of the
+    /// global hash: listing a file here does NOT fold it into `contentHash`.
+    pub slices: BTreeMap<String, Vec<String>>,
 }
 
 impl Default for IndexConfig {
@@ -129,6 +135,7 @@ impl Default for IndexConfig {
                 "standards/**".to_string(),
                 ".github/workflows/**".to_string(),
             ],
+            slices: BTreeMap::new(),
             resolver_exclusions: vec![
                 "target".to_string(),
                 "node_modules".to_string(),
@@ -227,5 +234,30 @@ pub struct FrontmatterConfig {
 /// Returns [`Error::Config`] (mapped to exit code 3) on any malformed or
 /// unknown-key error — never panics.
 pub fn load_config(toml_src: &str) -> Result<Config> {
-    toml::from_str(toml_src).map_err(|e| Error::Config(e.to_string()))
+    let config: Config = toml::from_str(toml_src).map_err(|e| Error::Config(e.to_string()))?;
+    validate_slices(&config)?;
+    Ok(config)
+}
+
+/// `[index.slices]` grammar (spec 012 §3.1): names match
+/// `[a-z0-9][a-z0-9-]*`, glob lists are non-empty.
+fn validate_slices(config: &Config) -> Result<()> {
+    for (name, globs) in &config.index.slices {
+        let mut chars = name.chars();
+        let head_ok = chars
+            .next()
+            .is_some_and(|c| c.is_ascii_lowercase() || c.is_ascii_digit());
+        let tail_ok = chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
+        if !(head_ok && tail_ok) {
+            return Err(Error::Config(format!(
+                "[index.slices] name '{name}' must match [a-z0-9][a-z0-9-]*"
+            )));
+        }
+        if globs.is_empty() {
+            return Err(Error::Config(format!(
+                "[index.slices] '{name}' must list at least one glob"
+            )));
+        }
+    }
+    Ok(())
 }

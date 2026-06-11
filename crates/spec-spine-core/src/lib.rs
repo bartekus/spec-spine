@@ -46,7 +46,9 @@ pub use dep_only::{
     DEPENDENCY_TABLES, FileContents, dependency_only_change, dependency_only_waiver,
     is_package_json,
 };
-pub use index::{Freshness, IndexOutcome, authorities, check_index_freshness, index};
+pub use index::{
+    Freshness, IndexOutcome, authorities, check_index_freshness, check_slice_freshness, index,
+};
 pub use lint::{LintReport, lint};
 pub use query::{
     ListFilter, RelationshipView, StatusReport, StatusReportNonzero, list, list_ids, load_index,

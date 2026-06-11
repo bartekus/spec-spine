@@ -3,6 +3,8 @@
 //! OAP `codebase-index.schema.json` (3.0.0), pruned to the generic v1 surface and
 //! re-versioned to this library's own `0.1.0`.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::unit::Unit;
@@ -30,6 +32,11 @@ pub struct IndexBuild {
     pub repo_root: String,
     /// SHA-256 over the normalized, path-sorted manifest + spec + extra inputs.
     pub content_hash: String,
+    /// Per-slice content hashes (spec 012): one entry per `[index.slices]`
+    /// key, same normalization as `content_hash`. Absent when no slices are
+    /// configured; loaders tolerate absence (additive MINOR).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub slice_hashes: BTreeMap<String, String>,
 }
 
 /// The kind of a discovered compilation unit.
