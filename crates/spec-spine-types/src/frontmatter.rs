@@ -41,13 +41,17 @@ pub enum Risk {
 }
 
 /// Implementation progress (optional descriptive metadata).
+///
+/// The canonical "not applicable" spelling is `n-a` (kebab-case, the family the
+/// other variants share); `n/a` is accepted as a deserialize-only alias (spec
+/// 015) for the predecessor dialect, and normalizes back to `n-a` on emission.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Implementation {
     Pending,
     InProgress,
     Complete,
-    #[serde(rename = "n-a")]
+    #[serde(rename = "n-a", alias = "n/a")]
     Na,
     Deferred,
 }

@@ -1,6 +1,6 @@
 {
   "build": {
-    "contentHash": "37de583a36d30d2b79a6985516769513879dc53b9d181984ed2f2455199aa143",
+    "contentHash": "bc3bfc8472dd56a49b87bb19549f741f17d3270dcc6e0decae576b706be3fe32",
     "indexerId": "spec-spine",
     "indexerVersion": "0.2.0",
     "repoRoot": "."
@@ -1532,6 +1532,85 @@
         ],
         "specId": "014-edge-paths-grammar-sugar",
         "specStatus": "approved"
+      },
+      {
+        "dependsOn": [
+          "000-spec-spine-bootstrap"
+        ],
+        "implementingPaths": [
+          {
+            "path": "crates/spec-spine-core/tests/compile.rs",
+            "source": "spec-edge"
+          },
+          {
+            "path": "crates/spec-spine-types/src/frontmatter.rs",
+            "source": "spec-edge"
+          },
+          {
+            "path": "crates/spec-spine-types/src/unit.rs",
+            "source": "spec-edge"
+          },
+          {
+            "path": "crates/spec-spine-types/tests/grammar.rs",
+            "source": "spec-edge"
+          }
+        ],
+        "resolvedUnits": [
+          {
+            "locations": [
+              {
+                "file": "crates/spec-spine-core/tests/compile.rs"
+              }
+            ],
+            "ownership": true,
+            "sourceField": "extends",
+            "unit": {
+              "kind": "file",
+              "path": "crates/spec-spine-core/tests/compile.rs"
+            }
+          },
+          {
+            "locations": [
+              {
+                "file": "crates/spec-spine-types/src/frontmatter.rs"
+              }
+            ],
+            "ownership": true,
+            "sourceField": "extends",
+            "unit": {
+              "kind": "file",
+              "path": "crates/spec-spine-types/src/frontmatter.rs"
+            }
+          },
+          {
+            "locations": [
+              {
+                "file": "crates/spec-spine-types/src/unit.rs"
+              }
+            ],
+            "ownership": true,
+            "sourceField": "extends",
+            "unit": {
+              "kind": "file",
+              "path": "crates/spec-spine-types/src/unit.rs"
+            }
+          },
+          {
+            "locations": [
+              {
+                "file": "crates/spec-spine-types/tests/grammar.rs"
+              }
+            ],
+            "ownership": true,
+            "sourceField": "extends",
+            "unit": {
+              "kind": "file",
+              "path": "crates/spec-spine-types/tests/grammar.rs"
+            }
+          }
+        ],
+        "specId": "015-establishes-wrapper-na-alias",
+        "specStatus": "draft"
       }
     ],
     "orphanedSpecs": [],

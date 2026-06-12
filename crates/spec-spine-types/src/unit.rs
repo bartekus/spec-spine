@@ -13,8 +13,10 @@ use serde::{Deserialize, Serialize};
 /// An authority unit: the granularity at which a spec claims ownership.
 ///
 /// Serializes internally-tagged on `kind` (e.g. `{ "kind": "file", "path": ... }`).
-/// Deserializes from either that tagged map **or** a bare string (= a file unit),
-/// so authors can write `establishes: ["src/lib.rs"]` as shorthand.
+/// Deserializes from that tagged map, a bare string (= a file unit), **or** a
+/// `{ unit: <unit> }` wrapper (spec 015 sugar), so authors can write
+/// `establishes: ["src/lib.rs"]` or `establishes: [{ unit: "src/lib.rs" }]`
+/// interchangeably; all three normalize to the same unit.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum Unit {
@@ -46,12 +48,20 @@ impl<'de> Deserialize<'de> for Unit {
     where
         D: Deserializer<'de>,
     {
-        // Accept either a bare string (-> file unit) or the tagged map form.
+        // Accept a bare string (-> file unit), the tagged map form, or the
+        // `{ unit: <unit> }` wrapper (spec 015).
         #[derive(Deserialize)]
         #[serde(untagged)]
         enum Repr {
             Bare(String),
             Tagged(Tagged),
+            // A predecessor dialect authors every `establishes` item as a
+            // single-key `unit:` map. The wrapper carries no information beyond
+            // the unit it wraps, so it normalizes away to that inner unit -- a
+            // third 1:1 representation alongside the bare-string and tagged
+            // forms, resolved by recursing through this same impl (so the inner
+            // unit may itself be bare or tagged, and inherits its validation).
+            Wrapped { unit: Box<Unit> },
         }
         #[derive(Deserialize)]
         #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
@@ -71,6 +81,7 @@ impl<'de> Deserialize<'de> for Unit {
             Repr::Tagged(Tagged::File { path }) => Ok(Unit::File { path }),
             Repr::Tagged(Tagged::Section { file, anchor }) => Ok(Unit::Section { file, anchor }),
             Repr::Tagged(Tagged::Symbol { id }) => Ok(Unit::Symbol { id }),
+            Repr::Wrapped { unit } => Ok(*unit),
         }
     }
 }

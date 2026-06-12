@@ -397,3 +397,38 @@ fn oap_dialect_refines_fixture_compiles_clean() {
             .all(|r| r.unit.is_some() && r.paths.is_none())
     );
 }
+
+#[test]
+fn establishes_wrapper_and_na_alias_are_byte_equivalent() {
+    // Spec 015 §3.3, the acceptance test: a corpus authored in the predecessor
+    // dialect -- each `establishes` item `{ unit: ... }`-wrapped, and
+    // `implementation: n/a` -- compiles to a registry byte-identical to the
+    // canonical spelling (bare/tagged units, `implementation: n-a`). Only
+    // `build.contentHash` may differ (it hashes the authored bytes, which
+    // differ by construction); every emitted record and the validation report
+    // must match byte-for-byte.
+    let sugar = tempfile::tempdir().unwrap();
+    write_spec(
+        sugar.path(),
+        "001-a",
+        "001-a",
+        "implementation: n/a\nestablishes:\n  - { unit: \"a.rs\" }\n  - { unit: { kind: symbol, id: \"crate::f\" } }\n",
+    );
+    let canonical = tempfile::tempdir().unwrap();
+    write_spec(
+        canonical.path(),
+        "001-a",
+        "001-a",
+        "implementation: n-a\nestablishes:\n  - \"a.rs\"\n  - { kind: symbol, id: \"crate::f\" }\n",
+    );
+
+    let cfg = Config::default();
+    let a = compile(&cfg, sugar.path()).unwrap();
+    let b = compile(&cfg, canonical.path()).unwrap();
+    assert_eq!(
+        serde_json::to_string(&a.registry.specs).unwrap(),
+        serde_json::to_string(&b.registry.specs).unwrap(),
+        "wrapped/aliased records must be byte-identical to canonical"
+    );
+    assert_eq!(a.registry.validation, b.registry.validation);
+}

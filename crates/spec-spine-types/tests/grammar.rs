@@ -1,6 +1,6 @@
 //! Unit-grammar and edge-grammar tests.
 
-use spec_spine_types::{Frontmatter, Unit, parse_frontmatter};
+use spec_spine_types::{Frontmatter, Implementation, Unit, parse_frontmatter};
 
 fn fm_with_edges(edges_yaml: &str) -> Frontmatter {
     let src = format!(
@@ -50,6 +50,29 @@ fn tagged_units_parse() {
 }
 
 #[test]
+fn unit_wrapper_form_unwraps() {
+    // Spec 015 §3.1: `{ unit: <unit> }` is a 1:1 wrapper that normalizes to the
+    // inner unit. The inner may itself be a bare string or a tagged map.
+    let bare: Unit = serde_yaml::from_str("{ unit: \"src/lib.rs\" }").unwrap();
+    assert_eq!(
+        bare,
+        Unit::File {
+            path: "src/lib.rs".into()
+        }
+    );
+    let tagged: Unit =
+        serde_yaml::from_str("{ unit: { kind: symbol, id: \"crate::f\" } }").unwrap();
+    assert_eq!(
+        tagged,
+        Unit::Symbol {
+            id: "crate::f".into()
+        }
+    );
+    // The inner unit inherits its own validation (empty path still rejected).
+    assert!(serde_yaml::from_str::<Unit>("{ unit: \"\" }").is_err());
+}
+
+#[test]
 fn directory_subtree_detection() {
     assert!(Unit::file("src/").is_directory_subtree());
     assert!(!Unit::file("src/lib.rs").is_directory_subtree());
@@ -82,6 +105,46 @@ fn establishes_accepts_mixed_forms() {
         Unit::Symbol {
             id: "crate::f".into()
         }
+    );
+}
+
+#[test]
+fn establishes_accepts_unit_wrapper() {
+    // Spec 015 §3.1: the predecessor dialect wraps each establishes item in a
+    // single-key `unit:` map. Wrapped and bare forms parse to the same units,
+    // and may be mixed within one list.
+    let fm = fm_with_edges(
+        "establishes:\n  - { unit: \"src/whole.rs\" }\n  - \"src/bare.rs\"\n  - { unit: { kind: section, file: \"Makefile\", anchor: \"ci\" } }\n",
+    );
+    assert_eq!(
+        fm.establishes,
+        vec![
+            Unit::File {
+                path: "src/whole.rs".into()
+            },
+            Unit::File {
+                path: "src/bare.rs".into()
+            },
+            Unit::Section {
+                file: "Makefile".into(),
+                anchor: "ci".into()
+            },
+        ]
+    );
+}
+
+#[test]
+fn implementation_na_slash_is_alias_for_na() {
+    // Spec 015 §3.2: `n/a` is a deserialize-only alias for the canonical `n-a`,
+    // which is the only spelling ever emitted.
+    let slash = fm_with_edges("implementation: n/a\n");
+    let kebab = fm_with_edges("implementation: n-a\n");
+    assert_eq!(slash.implementation, Some(Implementation::Na));
+    assert_eq!(slash.implementation, kebab.implementation);
+    assert_eq!(
+        serde_json::to_string(&Implementation::Na).unwrap(),
+        "\"n-a\"",
+        "Na must emit canonically as n-a"
     );
 }
 
