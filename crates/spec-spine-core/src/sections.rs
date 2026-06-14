@@ -322,12 +322,29 @@ fn workflow_yaml_sections(content: &str) -> Vec<(String, LineSpan)> {
     let mut out: Vec<(String, LineSpan)> = Vec::new();
     // Ancestor stack of (indent, key) giving the current mapping path.
     let mut stack: Vec<(usize, String)> = Vec::new();
+    // Indent of the key opening a block scalar (`run: |` / `>`), while its more-
+    // indented content lines are being skipped: such lines are literal text, not
+    // mapping keys (a stray `echo "x: y"` must not parse as a key).
+    let mut block_scalar_indent: Option<usize> = None;
 
     for (i, raw) in lines.iter().enumerate() {
         if raw.trim().is_empty() {
             continue;
         }
+        let ind = indent(raw);
+        if let Some(bsi) = block_scalar_indent {
+            if ind > bsi {
+                continue; // inside the block scalar's content
+            }
+            block_scalar_indent = None; // dedented back out
+        }
         let t = raw.trim_start();
+        // A `... : |` / `... : >` value opens a block scalar; its more-indented
+        // content lines are literal text, not keys. Detected on any line,
+        // including a `- run: |` step item, before the seq/comment skip below.
+        if opens_block_scalar(t) {
+            block_scalar_indent = Some(ind);
+        }
         // Comments and sequence/flow items are not mapping keys.
         if t.starts_with(['#', '-', '{', '[', '|', '>']) {
             continue;
@@ -335,7 +352,6 @@ fn workflow_yaml_sections(content: &str) -> Vec<(String, LineSpan)> {
         let Some(key) = mapping_key(t) else {
             continue;
         };
-        let ind = indent(raw);
         while matches!(stack.last(), Some(&(pi, _)) if pi >= ind) {
             stack.pop();
         }
@@ -377,6 +393,20 @@ fn block_span(lines: &[&str], ki: usize, key_indent: usize) -> LineSpan {
         }
     }
     LineSpan::new(start, end.max(start))
+}
+
+/// True if a left-trimmed line opens a YAML block scalar (`key: |` / `key: >`,
+/// including a `- run: |` step item). Leading sequence markers are stripped, then
+/// the value after the key's colon is checked for the `|` / `>` indicator.
+fn opens_block_scalar(trimmed: &str) -> bool {
+    let s = trimmed.trim_start_matches(['-', ' ']);
+    match s.find(':') {
+        Some(c) => {
+            let value = s[c + 1..].trim();
+            value.starts_with('|') || value.starts_with('>')
+        }
+        None => false,
+    }
 }
 
 /// The mapping key in a `key:` line (already left-trimmed), with surrounding
@@ -468,7 +498,13 @@ fn collect_toml(
             let child_min = collect_toml(sub, prefix, tables, leaves, max_depth);
             let start = own_span.as_ref().map(|s| s.start).or(child_min);
             if let Some(st) = start {
-                if depth <= max_depth {
+                // A dotted-key assignment (`version.workspace = true`) is modeled
+                // as a `Table` but is not a `[header]`-delimited section, so it is
+                // not an addressable table keypath (§3.3). Skip recording it; still
+                // fold its start into `min_start` so the enclosing real table's
+                // span covers the dotted keys. Implicit header tables (created by a
+                // deeper `[a.b]`) are kept: they are header-delimited, just elided.
+                if depth <= max_depth && !sub.is_dotted() {
                     tables.push((prefix.clone(), st));
                 }
                 min_start = Some(min_start.map_or(st, |m: usize| m.min(st)));
@@ -911,6 +947,83 @@ spec = \"001\"
         assert_eq!(ws_span(PKG, f, "scripts.test"), Some(LineSpan::new(5, 5)));
         // No member reached through an array, no over-depth.
         assert_eq!(ws_span(PKG, f, "scripts.test.shell"), None);
+    }
+
+    const WORKFLOW_BLOCK_SCALAR: &str = "\
+on: push
+notes: |
+  permissions: write-all
+  on: schedule
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu
+    steps:
+      - run: |
+          echo \"jobs: injected\"
+";
+
+    #[test]
+    fn workflow_block_scalar_text_is_not_a_key() {
+        let f = ".github/workflows/ci.yml";
+        // Real top-level keys resolve to their own blocks, never to the literal
+        // text inside a block scalar.
+        assert_eq!(
+            ws_span(WORKFLOW_BLOCK_SCALAR, f, "on"),
+            Some(LineSpan::new(1, 1))
+        );
+        assert_eq!(
+            ws_span(WORKFLOW_BLOCK_SCALAR, f, "permissions"),
+            Some(LineSpan::new(5, 6))
+        );
+        // The block-scalar key itself resolves (its span covers its content).
+        assert_eq!(
+            ws_span(WORKFLOW_BLOCK_SCALAR, f, "notes"),
+            Some(LineSpan::new(2, 4))
+        );
+        // ...but the literal `permissions:` / `on:` lines inside it are text, not
+        // keypaths: no phantom anchor is produced.
+        assert_eq!(ws_span(WORKFLOW_BLOCK_SCALAR, f, "notes.permissions"), None);
+        assert_eq!(ws_span(WORKFLOW_BLOCK_SCALAR, f, "notes.on"), None);
+        // The `- run: |` step content is likewise inert.
+        assert_eq!(ws_span(WORKFLOW_BLOCK_SCALAR, f, "jobs.injected"), None);
+    }
+
+    const CARGO_DOTTED: &str = "\
+[package]
+name = \"x\"
+version.workspace = true
+edition.workspace = true
+
+[package.metadata.spec-spine]
+spec = \"001\"
+
+[dependencies]
+serde = \"1\"
+";
+
+    #[test]
+    fn cargo_toml_skips_dotted_key_pseudo_tables() {
+        let f = "Cargo.toml";
+        // A real [header] table resolves, subtree-inclusive.
+        assert_eq!(
+            ws_span(CARGO_DOTTED, f, "package"),
+            Some(LineSpan::new(1, 8))
+        );
+        // An implicit header table (created by a deeper [a.b.c]) resolves.
+        assert_eq!(
+            ws_span(CARGO_DOTTED, f, "package.metadata.spec-spine"),
+            Some(LineSpan::new(6, 8))
+        );
+        assert_eq!(
+            ws_span(CARGO_DOTTED, f, "dependencies"),
+            Some(LineSpan::new(9, 10))
+        );
+        // A dotted-key assignment (`version.workspace = true`) is NOT a
+        // header-delimited section, so it is not an addressable keypath.
+        assert_eq!(ws_span(CARGO_DOTTED, f, "package.version"), None);
+        assert_eq!(ws_span(CARGO_DOTTED, f, "package.edition"), None);
     }
 
     #[test]
