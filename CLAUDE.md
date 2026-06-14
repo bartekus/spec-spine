@@ -123,6 +123,12 @@ This repo runs its own gates against its own corpus in CI (`.github/workflows/ci
   spec's `spec.md` (or adding a `Spec-Drift-Waiver:` line to the PR body). The
   bypass floor (docs, lockfiles, `.derived/`, per `couple.rs::DEFAULT_BYPASS_PREFIXES`,
   extended by `spec-spine.toml [coupling] bypass_prefixes`) exempts non-code paths.
+- **Merge conflicts on the committed artifacts (spec 020).** Because both carry a
+  global content hash, two branches that regenerated them conflict textually. An
+  opt-in per-clone git merge driver resolves this by regenerating from the merged
+  tree. Enable it once per clone: `./.githooks/enable-merge-driver.sh` (build the
+  binary first; the driver shells out to `spec-spine compile && index`). It is
+  inert until registered, and never replaces the `index check` staleness gate.
 
 When working on a feature, add or amend the governing spec under `specs/` in the
 same change. `standards/spec/` holds the constitution + contract + templates;
