@@ -1,6 +1,6 @@
 {
   "build": {
-    "contentHash": "195c70c153912314bab2b2d96a124d2242b54f08bf900a31417fa9d5b7a1d5d1",
+    "contentHash": "1f32daea762f97558480b2a13d0eb3990cd96294cd5993f0c7893f28430a1c0f",
     "indexerId": "spec-spine",
     "indexerVersion": "0.3.0",
     "repoRoot": "."
@@ -2150,6 +2150,81 @@
         ],
         "specId": "019-structured-partial-supersedes",
         "specStatus": "draft"
+      },
+      {
+        "dependsOn": [
+          "001-compile-registry",
+          "004-codebase-index",
+          "005-coupling-gate"
+        ],
+        "implementingPaths": [
+          {
+            "path": ".githooks/",
+            "source": "spec-edge"
+          }
+        ],
+        "resolvedUnits": [
+          {
+            "locations": [
+              {
+                "file": ".githooks/"
+              }
+            ],
+            "ownership": true,
+            "sourceField": "establishes",
+            "unit": {
+              "kind": "file",
+              "path": ".githooks/"
+            }
+          }
+        ],
+        "specId": "020-derived-artifact-merge-driver",
+        "specStatus": "approved"
+      },
+      {
+        "dependsOn": [
+          "007-distribution"
+        ],
+        "implementingPaths": [
+          {
+            "path": ".github/workflows/release.yml",
+            "source": "spec-edge"
+          },
+          {
+            "path": "docs/releasing.md",
+            "source": "spec-edge"
+          }
+        ],
+        "resolvedUnits": [
+          {
+            "locations": [
+              {
+                "file": ".github/workflows/release.yml"
+              }
+            ],
+            "ownership": true,
+            "sourceField": "extends",
+            "unit": {
+              "kind": "file",
+              "path": ".github/workflows/release.yml"
+            }
+          },
+          {
+            "locations": [
+              {
+                "file": "docs/releasing.md"
+              }
+            ],
+            "ownership": true,
+            "sourceField": "extends",
+            "unit": {
+              "kind": "file",
+              "path": "docs/releasing.md"
+            }
+          }
+        ],
+        "specId": "021-release-supply-chain-artifacts",
+        "specStatus": "approved"
       }
     ],
     "orphanedSpecs": [],

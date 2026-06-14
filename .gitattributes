@@ -60,3 +60,13 @@ Dockerfile* text eol=lf
 *.gz        binary
 *.tar       binary
 *.tgz       binary
+
+# --- Derived-artifact merge driver (spec 020) ---
+# The two committed derived artifacts each carry a global content hash, so two
+# branches that both regenerated them conflict textually. The
+# `spec-spine-derived-regen` driver regenerates them from the merged tree
+# instead of leaving conflict markers. Opt-in: register the driver per-clone
+# with `./.githooks/enable-merge-driver.sh` (see CLAUDE.md). If unregistered,
+# git falls back to the default text merge; no behavior change.
+.derived/spec-registry/registry.json merge=spec-spine-derived-regen
+.derived/codebase-index/index.json merge=spec-spine-derived-regen

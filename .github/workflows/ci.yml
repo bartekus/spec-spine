@@ -11,6 +11,13 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Spec 020: GitHub merge queue. Each queued PR is tested against the
+  # speculative merged tree, so a green PR cannot be silently invalidated by
+  # the one ahead of it (e.g. a duplicate spec id introduced on two branches).
+  # The coupling gate stays pull_request-only (it reads the PR-body waiver, which
+  # merge_group does not carry); every other check runs here. INERT until a repo
+  # admin enables the merge queue in branch protection.
+  merge_group:
 
 permissions:
   contents: read

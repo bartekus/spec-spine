@@ -64,8 +64,27 @@ supported targets, `x86_64`/`aarch64` `apple-darwin`, `x86_64`/`aarch64`
 GitHub-hosted runner, and attaches them to the GitHub Release.
 [`install.sh`](../install.sh) (`curl | sh`) consumes those assets.
 
-Per-archive CycloneDX SBOM is deferred for v1 (low value/time ratio); add to the
-release workflow on request.
+### Supply-chain artifacts (spec 021)
+
+Each of the five archives ships with two supply-chain artifacts, generated in the
+same `build` matrix (no second Rust build):
+
+- a **per-target CycloneDX SBOM** (`spec-spine-<tag>-<triple>.cdx.json`) produced
+  by `anchore/sbom-action` (syft) from the committed `Cargo.lock`, attached to
+  the GitHub Release as a separate asset. A fail-closed check refuses to ship an
+  SBOM with zero components.
+- a **SLSA build-provenance attestation** over the archive, recorded in GitHub's
+  attestation store via `actions/attest-build-provenance` (no long-lived token).
+
+Verify a downloaded archive:
+
+```sh
+gh attestation verify spec-spine-<tag>-<triple>.tar.gz --repo bartekus/spec-spine
+```
+
+These steps run only on a `v*` tag (the release workflow is tag-gated), so they
+are not exercised by PR CI; if the pinned action versions move, sanity-check them
+before the next release.
 
 ## 3. npm: the binary-distribution shim (spec 007)
 

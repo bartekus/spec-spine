@@ -21,6 +21,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Spec 020: prove cross-triple determinism on the speculative merged tree too,
+  # so a merge that shifts symbol line-spans cannot reach main unproven. INERT
+  # until a repo admin enables the merge queue in branch protection.
+  merge_group:
 
 permissions:
   contents: read
