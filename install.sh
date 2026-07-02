@@ -6,8 +6,14 @@
 # `spec-spine` binary on your PATH.
 #
 # Environment overrides:
-#   SPEC_SPINE_VERSION   release tag to install (default: latest), e.g. v0.1.0
-#   SPEC_SPINE_BIN_DIR   install dir (default: ~/.local/bin, or /usr/local/bin if writable & in PATH)
+#   SPEC_SPINE_VERSION            release tag to install (default: latest), e.g. v0.1.0
+#   SPEC_SPINE_BIN_DIR            install dir (default: ~/.local/bin, or /usr/local/bin if writable & in PATH)
+#   SPEC_SPINE_REQUIRE_ATTESTATION=1  hard-fail if the build-provenance attestation cannot be verified
+#   SPEC_SPINE_SKIP_ATTESTATION=1     skip the provenance check entirely (checksum still enforced)
+#
+# The .sha256 sidecar proves integrity; provenance verification (via `gh`, spec
+# 021) proves authenticity. musl-based Linux (e.g. Alpine) is refused with a
+# pointer to `cargo install`, since the prebuilt Linux binaries are glibc-only.
 #
 # Windows: use the .zip from the Releases page (this script targets macOS/Linux).
 
@@ -36,7 +42,16 @@ os="$(uname -s)"
 arch="$(uname -m)"
 case "$os" in
   Darwin) plat="apple-darwin" ;;
-  Linux)  plat="unknown-linux-gnu" ;;
+  Linux)
+    plat="unknown-linux-gnu"
+    # The prebuilt Linux archives are glibc-only. On musl (Alpine, etc.) a glibc
+    # binary fails at runtime with a cryptic dynamic-loader error, so refuse up
+    # front with an actionable message (parity with the npm/py shims).
+    if { ldd --version 2>&1 | grep -qi musl; } \
+       || [ -e /lib/ld-musl-x86_64.so.1 ] || [ -e /lib/ld-musl-aarch64.so.1 ]; then
+      die "musl libc detected (e.g. Alpine): the prebuilt binaries are glibc-only. Install with 'cargo install spec-spine-cli' (needs the Rust toolchain), or use a glibc-based distro."
+    fi
+    ;;
   *)      die "unsupported OS '$os' (use the .zip from the Releases page on Windows)" ;;
 esac
 case "$arch" in
@@ -78,6 +93,23 @@ elif have openssl;  then actual="$(openssl dgst -sha256 "${tmp}/${archive}" | aw
 else die "need sha256sum, shasum, or openssl to verify the download"; fi
 [ "$expected" = "$actual" ] || die "checksum mismatch (expected ${expected}, got ${actual})"
 say "checksum verified"
+
+# --- verify provenance attestation (authenticity, not just integrity) --------
+# The .sha256 sidecar is fetched from the same release as the archive, so it
+# proves integrity but NOT authenticity: a rewritten release ships a matching
+# sidecar. GitHub build-provenance attestations (spec 021) close that gap. Use
+# `gh attestation verify` when available. Best-effort by default (many curl|sh
+# users have no authenticated `gh`); set SPEC_SPINE_REQUIRE_ATTESTATION=1 to
+# make an unverifiable download a hard failure.
+if [ "${SPEC_SPINE_SKIP_ATTESTATION:-0}" = "1" ]; then
+  say "provenance attestation check skipped (SPEC_SPINE_SKIP_ATTESTATION=1)"
+elif have gh && gh attestation verify "${tmp}/${archive}" --repo "${REPO}" >/dev/null 2>&1; then
+  say "provenance attestation verified (spec 021)"
+elif [ "${SPEC_SPINE_REQUIRE_ATTESTATION:-0}" = "1" ]; then
+  die "provenance attestation could NOT be verified and SPEC_SPINE_REQUIRE_ATTESTATION=1 is set (rewritten release, or 'gh' missing/unauthenticated)"
+else
+  say "note: provenance attestation not verified (install 'gh' and authenticate for authenticity checks; checksum was verified). Set SPEC_SPINE_REQUIRE_ATTESTATION=1 to enforce."
+fi
 
 # --- extract -----------------------------------------------------------------
 tar -C "$tmp" -xzf "${tmp}/${archive}" || die "extract failed"

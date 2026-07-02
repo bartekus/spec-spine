@@ -1,0 +1,34 @@
+version: 2
+
+# Keep dependencies and, critically, the SHA-pinned GitHub Actions current.
+# release.yml pins third-party actions to full commit SHAs (a `# vX.Y.Z` comment
+# records the human-readable version); Dependabot proposes SHA bumps for review
+# so the pins do not silently rot.
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: weekly
+    # The committed Cargo.lock is part of the determinism contract (tree-sitter
+    # grammars pinned exact); review lockfile changes deliberately.
+    groups:
+      cargo:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: "/npm"
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: pip
+    directory: "/py"
+    schedule:
+      interval: weekly

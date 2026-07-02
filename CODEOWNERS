@@ -1,0 +1,19 @@
+# Code owners for spec-spine. GitHub requests a review from the listed owner on
+# any PR that touches a matching path (enforced once branch protection turns on
+# "Require review from Code Owners"). The CI/release surface and the governed
+# spec corpus are the load-bearing paths, so they are called out explicitly.
+
+# Default owner for everything in the repo.
+*                       @bartekus
+
+# CI/CD and supply chain: workflow edits change what runs with publish tokens
+# and attestation permissions, so they warrant explicit review.
+/.github/               @bartekus
+/install.sh             @bartekus
+/.githooks/             @bartekus
+/scripts/               @bartekus
+
+# The governed authority ledger: the constitution, contract, templates, and the
+# spec corpus itself.
+/standards/             @bartekus
+/specs/                 @bartekus

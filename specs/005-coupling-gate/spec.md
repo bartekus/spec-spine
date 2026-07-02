@@ -23,8 +23,9 @@ summary: >
   The PR-time coupling gate (spec-spine.md guardrail 2): cross-reference every
   changed code path against the authority graph and refuse the merge when code
   drifts from the spec that owns it. A pure function of (config, registry, index,
-  diff, waiver); the CLI parses `git diff --no-color -U0 base...head` into a typed
-  DiffInput so git stays out of core. Matches a diff hunk to its owning unit at
+  diff, waiver); the CLI parses `git diff --no-color -U0 --no-renames base...head`
+  (quotepath off, end-of-options) into a typed DiffInput so git stays out of core.
+  Matches a diff hunk to its owning unit at
   file, section, and symbol granularity; is amends-aware with the FR-005
   strict-expansion guard; transfers authority across supersedes; honors PR-body
   waivers and an additive bypass list. Establishes the couple engine and the
@@ -68,10 +69,18 @@ Core exposes two pure entry points (no clock, no env, no git):
 - `couple_with(cfg, registry, index, diff, waiver)`: the pure form for callers
   that already hold the artifacts (overlays, tests).
 
-The CLI runs `git diff --no-color -U0 <base>...<head>`, parses it into a typed
-`DiffInput` (per-file new-side hunk line-spans), reads the PR body for a waiver,
-and calls `couple`. A `DiffInput` file with **no hunks** (a deletion, or
-`--paths-from` mode) denotes a whole-file change that overlaps every span.
+The CLI runs `git -c core.quotepath=false diff --no-color -U0 --no-renames
+--end-of-options <base>...<head>`, parses it into a typed `DiffInput` (per-file
+new-side hunk line-spans), reads the PR body for a waiver, and calls `couple`. A
+`DiffInput` file with **no hunks** (a deletion, or `--paths-from` mode) denotes a
+whole-file change that overlaps every span. Three flags harden the diff against
+gate evasion and injection: `--no-renames` makes a rename surface as a delete of
+the old path plus an add of the new path (both whole-file changes the gate
+evaluates), so moving a governed file with `git mv` cannot bypass coupling;
+`core.quotepath=false` keeps a non-ASCII/space path literal so it still matches
+its owning unit instead of arriving as an octal-quoted, unmatched string; and
+`--end-of-options` guarantees a `<base>`/`<head>` ref that begins with `-` is
+treated as an operand, never as a git option.
 
 ### 3.2 Owner derivation: three granularities
 

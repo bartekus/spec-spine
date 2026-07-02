@@ -19,25 +19,26 @@ depends on.
 An overlay is a separate crate (published or private) that:
 
 1. depends on `spec-spine-core` (and transitively `spec-spine-types`);
-2. reads the committed generic artifacts (`registry.json`, `index.json`) via the
-   public loaders;
+2. reads the committed generic artifacts (the sharded registry + index trees,
+   one file per authority unit) via the public loaders;
 3. computes whatever enriched view it needs;
 4. emits a **sibling** artifact next to the generic one, by convention
    `<artifact>-<overlay>.json` (e.g. `registry-compliance.json`,
    `index-factory.json`).
 
 It does **not** modify, replace, or re-emit the generic artifacts. The generic
-`spec-spine` toolchain remains the single producer of `registry.json` /
-`index.json`; overlays are strictly additive readers.
+`spec-spine` toolchain remains the single producer of the registry / index
+shard trees; overlays are strictly additive readers.
 
 ```
 .derived/
 ├─ spec-registry/
-│  ├─ registry.json            ← produced by `spec-spine compile` (generic, canonical)
-│  └─ registry-compliance.json ← produced by your overlay (sibling)
+│  ├─ by-spec/<id>.json         ← produced by `spec-spine compile` (one shard per unit, canonical)
+│  └─ registry-compliance.json  ← produced by your overlay (sibling)
 └─ codebase-index/
-   ├─ index.json               ← produced by `spec-spine index` (generic, canonical)
-   └─ index-factory.json       ← produced by your overlay (sibling)
+   ├─ by-spec/<id>.json          ← produced by `spec-spine index` (one shard per unit, canonical)
+   ├─ by-package/<slug>.json     ← produced by `spec-spine index` (one shard per package)
+   └─ index-factory.json         ← produced by your overlay (sibling)
 ```
 
 ---
@@ -57,16 +58,26 @@ pub fn load_registry(bytes: &[u8]) -> Result<Registry,      Error>;
 pub fn load_index   (bytes: &[u8]) -> Result<CodebaseIndex, Error>;
 ```
 
+The committed artifacts are **sharded** (one file per authority unit, spec 024),
+so read them from disk through the loaders that fold the shard set into the
+aggregate: `load_committed_registry(cfg, repo_root)` and
+`load_committed_index(cfg, repo_root)` (see [api.md](api.md)). They return the
+same `Registry` / `CodebaseIndex` DTOs; the byte parsers above remain the
+lower-level seam for callers that already hold canonical bytes.
+
 A minimal overlay:
 
 ```rust
 use std::fs;
-use spec_spine_core::{load_registry, load_index};
+use spec_spine_core::{load_committed_registry, load_committed_index};
+use spec_spine_core::types::Config;
 
-fn run(repo_root: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
-    let derived = repo_root.join(".derived");
-    let registry = load_registry(&fs::read(derived.join("spec-registry/registry.json"))?)?;
-    let index    = load_index(&fs::read(derived.join("codebase-index/index.json"))?)?;
+fn run(cfg: &Config, repo_root: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
+    // The committed registry / index are sharded (spec 024): one file per
+    // authority unit, no monolithic JSON to read. These loaders fold the shard
+    // set into the aggregate `Registry` / `CodebaseIndex` on read.
+    let registry = load_committed_registry(cfg, repo_root)?;
+    let index    = load_committed_index(cfg, repo_root)?;
 
     // ... compute your enriched view from the typed structs ...
     let enriched = my_enrichment(&registry, &index);
@@ -74,7 +85,7 @@ fn run(repo_root: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
     // Emit a sibling. Match the generic canonicalization for diffable output:
     // sorted keys, 2-space pretty, LF, trailing newline.
     let bytes = canonical_json(&enriched);   // your serializer; see §4
-    fs::write(derived.join("spec-registry/registry-compliance.json"), bytes)?;
+    fs::write(repo_root.join(".derived/spec-registry/registry-compliance.json"), bytes)?;
     Ok(())
 }
 ```
@@ -140,8 +151,8 @@ factory artifacts, capability/registry/profile system, and Claude config-hash
 gate are **not** generic. OAP adopts spec-spine as **generic core + an OAP
 overlay crate**, not as a drop-in replacement for its current tooling:
 
-- `spec-spine compile` / `index` produce the generic `registry.json` /
-  `index.json`.
+- `spec-spine compile` / `index` produce the generic registry / index shard
+  trees.
 - An `oap-overlay` crate calls `load_registry` / `load_index`, reads OAP-specific
   fields via `extra_frontmatter` (declared in `frontmatter.extra_known_keys`),
   and emits `registry-oap.json` / `index-oap.json` plus its compliance/factory
@@ -157,8 +168,8 @@ makes that the *supported* shape instead of an internal convention.
 
 ## 7. Rules of the road
 
-- **Read, don't rewrite.** An overlay never re-emits `registry.json` /
-  `index.json`. One generic producer; many sibling consumers.
+- **Read, don't rewrite.** An overlay never re-emits the generic registry /
+  index shards. One generic producer; many sibling consumers.
 - **Pin your core dependency** to the MAJOR you target; the loaders enforce it at
   read time.
 - **Stay deterministic.** If your overlay is to be CI-gated the same way, keep it

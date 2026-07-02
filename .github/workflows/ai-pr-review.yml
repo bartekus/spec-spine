@@ -29,8 +29,12 @@ on:
   # the orchestrated PR-gate suite and the terminal `ci-gate` `needs:` it (a
   # failed or absent review blocks merge; green ci-gate => actually reviewed or
   # visibly skipped). It does NOT trigger standalone on `pull_request` (that
-  # would double-run it).
+  # would double-run it). The OAuth secret is declared (not inherited) so the
+  # caller forwards only this one secret, never the publish tokens.
   workflow_call:
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: false
   workflow_dispatch:
 
 permissions:
@@ -47,17 +51,46 @@ jobs:
     runs-on: ubuntu-latest
     name: ai-review / diff scan
     timeout-minutes: 10
-    if: github.event.pull_request.draft == false
+    # Require a real PR context AND a non-draft PR. `github.event.pull_request`
+    # is null on a bare `workflow_dispatch`, so this also stops a manual dispatch
+    # from running against an empty diff (GitHub coerces `null == false` to true,
+    # so the draft check alone would not).
+    if: github.event.pull_request && github.event.pull_request.draft == false
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
 
+      # Fork PRs never receive repository secrets, so CLAUDE_CODE_OAUTH_TOKEN is
+      # absent and the review cannot run. Detect that here and skip visibly
+      # (below) rather than hard-failing the required ci-gate on every external
+      # contribution. Same-repo PRs (fork=false) keep the strict secret check.
+      - name: Detect fork PR
+        id: ctx
+        env:
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+        run: |
+          if [ "${HEAD_REPO}" != "${BASE_REPO}" ]; then
+            echo "fork=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "fork=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Compute diff size
         id: diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          DIFF_LINES=$(git diff origin/main...HEAD --stat | tail -1 | grep -oP '\d+ insertion' | grep -oP '\d+' || echo "0")
+          # Size THIS PR's own changes only: base.sha...head.sha is a three-dot
+          # diff whose merge base is the fork point, so it is stable across
+          # re-runs (origin/main...HEAD drifts as main advances). Sum added AND
+          # deleted lines (numstat) so deletion-heavy PRs are not undercounted to
+          # zero; binary files report '-' and are skipped.
+          DIFF_LINES=$(git diff --numstat "${BASE_SHA}...${HEAD_SHA}" \
+            | awk '{ if ($1 != "-") a += $1; if ($2 != "-") d += $2 } END { print a + d + 0 }')
           echo "lines=$DIFF_LINES" >> "$GITHUB_OUTPUT"
           if [ "$DIFF_LINES" -gt "$DIFF_SIZE_CAP" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -66,18 +99,21 @@ jobs:
           fi
 
       - name: Generate diff
-        if: steps.diff.outputs.skip != 'true'
-        run: git diff origin/main...HEAD > /tmp/pr-diff.txt
+        if: steps.diff.outputs.skip != 'true' && steps.ctx.outputs.fork != 'true'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: git diff "${BASE_SHA}...${HEAD_SHA}" > /tmp/pr-diff.txt
 
       - name: Install Claude CLI
-        if: steps.diff.outputs.skip != 'true'
+        if: steps.diff.outputs.skip != 'true' && steps.ctx.outputs.fork != 'true'
         run: npm install -g "@anthropic-ai/claude-code@${CLAUDE_CLI_VERSION}"
 
       # Prompt prelude is fed via -p; the diff is piped to stdin. No shell
       # interpolation of contributor-controlled content occurs.
       - name: Run AI Review
         id: aireview
-        if: steps.diff.outputs.skip != 'true'
+        if: steps.diff.outputs.skip != 'true' && steps.ctx.outputs.fork != 'true'
         env:
           # Subscription-backed auth via the Claude Code OAuth token, NOT an
           # API key. ANTHROPIC_API_KEY is deliberately NOT set: an empty/unset
@@ -110,7 +146,15 @@ jobs:
           #     ::warning:: and a PR notice, so a third-party API incident rides
           #     through instead of red-gating every PR. The pass is visible (a
           #     comment is posted), never silent.
-          if claude -p "$PROMPT" --output-format text < /tmp/pr-diff.txt > /tmp/review.md 2> /tmp/review.err; then
+          # Run claude from an empty, throwaway working directory so the
+          # contributor-controlled checkout (which a malicious PR could seed with
+          # a `.claude/settings.json` granting Bash or bypassPermissions) is NOT
+          # on claude's settings-discovery path. The diff arrives only on stdin;
+          # claude never reads the PR tree. This closes the agent-injection seam
+          # that the stdin-not-interpolated defense above does not cover.
+          review_cwd="${RUNNER_TEMP}/ai-review-cwd"
+          rm -rf "$review_cwd"; mkdir -p "$review_cwd"
+          if ( cd "$review_cwd" && claude -p "$PROMPT" --output-format text ) < /tmp/pr-diff.txt > /tmp/review.md 2> /tmp/review.err; then
             echo "review_status=ok" >> "$GITHUB_OUTPUT"
           else
             rc=$?
@@ -198,3 +242,24 @@ jobs:
             echo "\`ci-gate\` still passes (the review job is skipped, not failed), so **a human reviewer must review this PR manually.** A green \`ci-gate\` on this PR does **not** imply an AI review happened."
           } > /tmp/skip-comment.md
           gh pr comment "$PR_NUMBER" --body-file /tmp/skip-comment.md
+
+      - name: Skip notice (fork PR; make the skip VISIBLE, not silent)
+        # Fork PRs cannot access CLAUDE_CODE_OAUTH_TOKEN (GitHub withholds secrets
+        # from forks), so the AI review is skipped rather than hard-failing the
+        # required ci-gate on every external contribution. The fork's GITHUB_TOKEN
+        # is read-only, so a PR comment may not post; the ::warning:: annotation
+        # keeps the skip visible in the checks UI regardless.
+        if: steps.ctx.outputs.fork == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          echo "::warning::AI review SKIPPED; fork PRs have no access to CLAUDE_CODE_OAUTH_TOKEN. Manual review required; ci-gate passes so the external PR is not blocked."
+          {
+            echo "## AI Code Review: SKIPPED (fork PR)"
+            echo ""
+            echo "This PR is from a fork, so it cannot access the \`CLAUDE_CODE_OAUTH_TOKEN\` secret and the automated AI review did **not** run."
+            echo ""
+            echo "\`ci-gate\` still passes so the external contribution is not blocked, but **a human reviewer must review this PR manually.**"
+          } > /tmp/fork-skip-comment.md
+          gh pr comment "$PR_NUMBER" --body-file /tmp/fork-skip-comment.md || echo "::warning::could not post fork-skip notice comment (fork GITHUB_TOKEN is read-only)"

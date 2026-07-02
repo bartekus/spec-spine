@@ -57,4 +57,4 @@ The job requires the repository variable `PYPI_TRUSTED_PUBLISHING=true` and uses
 
 ## 5. Determinism Gate
 
-The `.github/workflows/determinism.yml` workflow proves that the emitted `registry.json` and `index.json` are byte-identical across four triples. Keep this gate green; a span drift on any platform fails it.
+The `.github/workflows/determinism.yml` workflow proves that the emitted registry + index shard trees are byte-identical across four triples (it folds every shard's path and content into one tree digest). Keep this gate green; a span drift on any platform fails it.

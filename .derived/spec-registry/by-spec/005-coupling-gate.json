@@ -67,9 +67,9 @@
     ],
     "specPath": "specs/005-coupling-gate/spec.md",
     "status": "approved",
-    "summary": "The PR-time coupling gate (spec-spine.md guardrail 2): cross-reference every changed code path against the authority graph and refuse the merge when code drifts from the spec that owns it. A pure function of (config, registry, index, diff, waiver); the CLI parses `git diff --no-color -U0 base...head` into a typed DiffInput so git stays out of core. Matches a diff hunk to its owning unit at file, section, and symbol granularity; is amends-aware with the FR-005 strict-expansion guard; transfers authority across supersedes; honors PR-body waivers and an additive bypass list. Establishes the couple engine and the `spec-spine couple` subcommand.\n",
+    "summary": "The PR-time coupling gate (spec-spine.md guardrail 2): cross-reference every changed code path against the authority graph and refuse the merge when code drifts from the spec that owns it. A pure function of (config, registry, index, diff, waiver); the CLI parses `git diff --no-color -U0 --no-renames base...head` (quotepath off, end-of-options) into a typed DiffInput so git stays out of core. Matches a diff hunk to its owning unit at file, section, and symbol granularity; is amends-aware with the FR-005 strict-expansion guard; transfers authority across supersedes; honors PR-body waivers and an additive bypass list. Establishes the couple engine and the `spec-spine couple` subcommand.\n",
     "title": "The coupling gate: join the two views and refuse drift"
   },
-  "shardHash": "1dacea3dce23b7365013b65489a254ea55751b20017a86ed5a6b3056a6c4d5f9",
+  "shardHash": "83725ffabb1a56f600e871e4acc07f858651bbbbfecdc9a39f72d66cfd02e1fe",
   "specVersion": "1.1.0"
 }

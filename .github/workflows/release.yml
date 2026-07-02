@@ -93,10 +93,12 @@ jobs:
 
       # --- Supply-chain artifacts (spec 021): per-target CycloneDX SBOM + provenance ---
       # NOTE: these steps run only on a `v*` tag (this workflow is tag-gated), so
-      # they are not exercised by PR CI. Sanity-check the action versions before
-      # the next release if they have moved.
+      # they are not exercised by PR CI. Third-party actions are pinned to a full
+      # commit SHA (the `# vX.Y.Z` comment is the human-readable version) so a tag
+      # or branch rewrite upstream cannot alter a release build; Dependabot
+      # (.github/dependabot.yml) proposes SHA bumps for review.
       - name: Generate per-target CycloneDX SBOM
-        uses: anchore/sbom-action@v0.24.0
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
         with:
           path: .                                    # syft's cargo cataloger reads the committed Cargo.lock
           format: cyclonedx-json
@@ -138,7 +140,7 @@ jobs:
       - name: List release assets
         run: ls -la dist
       - name: Create / update the GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: dist/*
           fail_on_unmatched_files: true
@@ -329,7 +331,7 @@ jobs:
       # token is stored in the repo.
       - name: Publish to PyPI (idempotent; signed)
         if: steps.gate.outputs.present == 'true'
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
         with:
           packages-dir: py/dist/pypi
           skip-existing: true
