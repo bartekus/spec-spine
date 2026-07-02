@@ -23,4 +23,4 @@ Determinism makes the committed registry and index a reliable baseline.
 
 Two agents producing changes independently produce diffable, mechanically-mergeable registries: there is no interpretation drift at merge time, and staleness is detectable by content-hash comparison alone.
 
-CI proves this by asserting byte-identical `registry.json` and `index.json` across four release triples (`x86_64` and `aarch64` Linux, `aarch64` macOS, `x86_64` Windows).
+CI proves this by asserting byte-identical registry + index shard trees across four release triples (`x86_64` and `aarch64` Linux, `aarch64` macOS, `x86_64` Windows); it folds every shard's path and content into one tree digest.

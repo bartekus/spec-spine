@@ -48,8 +48,8 @@ their Linux binaries are glibc (Alpine/musl use `cargo install`). See
 
 ```sh
 spec-spine init             # scaffold spec-spine.toml, standards/, specs/000, agent rules
-spec-spine compile          # specs/*/spec.md -> .derived/spec-registry/registry.json
-spec-spine index            # scan manifests + specs -> .derived/codebase-index/index.json
+spec-spine compile          # specs/*/spec.md -> .derived/spec-registry/by-spec/<id>.json shards
+spec-spine index            # scan manifests + specs -> .derived/codebase-index/{by-spec,by-package}/ shards
 spec-spine lint             # corpus conformance
 spec-spine couple --base origin/main --head HEAD   # the PR-time drift gate
 ```
@@ -100,8 +100,9 @@ operation has a JSON-in/JSON-out facade (`compile_json`, `query_json`, …); see
 
 - **Deterministic by construction.** Sorted-key, pretty-printed JSON with LF and
   a trailing newline; content hashes over LF/BOM-normalized, path-sorted bytes;
-  tree-sitter grammars pinned exact. CI proves **byte-identical `registry.json` +
-  `index.json` across four release triples**, not just locally (the fifth,
+  tree-sitter grammars pinned exact. CI proves the **registry + index shard trees
+  are byte-identical across four release triples** (folding every shard's path and
+  content into one tree digest), not just locally (the fifth,
   x86_64-apple-darwin, is built and shipped by the release workflow but omitted
   from the determinism gate; its two dimensions are each proven by other legs).
 - **spec-spine governs itself.** This repo's own coupling gate runs against its

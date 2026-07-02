@@ -82,16 +82,24 @@ jobs:
       # unrecoverable: it lives in the PR description, not the squash commit
       # message. A legitimately waived PR would otherwise resurface as a false
       # drift failure on the post-merge main push.
+      # Diff both endpoints as frozen event SHAs (base.sha, head.sha), NOT the
+      # checked-out `refs/pull/N/merge` HEAD. The merge ref re-resolves against
+      # the current base every time the job runs, so `base.sha...HEAD` would fold
+      # in unrelated changes merged after this PR opened and report them as false
+      # drift (or silently widen a waiver's scope). `base.sha...head.sha` is a
+      # three-dot diff whose merge base is this PR's fork point, so it evaluates
+      # exactly the PR's own changes and is stable across re-runs.
       - name: Coupling gate (spec/code drift)
         if: github.event_name == 'pull_request'
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          BASE="${{ github.event.pull_request.base.sha }}"
-          echo "coupling base: $BASE → HEAD"
+          echo "coupling base: $BASE_SHA → head: $HEAD_SHA"
           printf '%s' "${PR_BODY:-}" > /tmp/pr-body.txt
-          ./target/debug/spec-spine couple --base "$BASE" --head HEAD --pr-body /tmp/pr-body.txt
+          ./target/debug/spec-spine couple --base "$BASE_SHA" --head "$HEAD_SHA" --pr-body /tmp/pr-body.txt
 
   # Cross-triple determinism golden, run as a reusable workflow so a single
   # `ci-gate` check below covers it too (spec 020).
@@ -103,15 +111,18 @@ jobs:
   # it needs PR context (number, base/head diff), so it is skipped on
   # push/merge_group/workflow_dispatch, which ci-gate treats as success.
   # Job-level pull-requests: write overrides the workflow read default (the
-  # review posts a comment); secrets: inherit passes CLAUDE_CODE_OAUTH_TOKEN.
+  # review posts a comment). Only CLAUDE_CODE_OAUTH_TOKEN is forwarded (an
+  # explicit map, not `secrets: inherit`), so the crates.io/npm/PyPI publish
+  # tokens are never exposed to this PR-triggered job.
   # A Claude API outage passes with a visible notice (spec 177 resilience); an
-  # auth failure or unset secret still hard-fails.
+  # auth failure still hard-fails; a fork PR (no secret access) skips visibly.
   ai-review:
     if: github.event_name == 'pull_request'
     permissions:
       contents: read
       pull-requests: write
-    secrets: inherit
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
     uses: ./.github/workflows/ai-pr-review.yml
 
   # Spec 020: the single required status check for branch protection and the

@@ -15,10 +15,14 @@ govern.
 
 ## Outputs (machine truth: compiler-owned JSON, read via the typed consumer only)
 
-- `<derived_dir>/spec-registry/registry.json`: spec-as-source (output of `compile`).
-- `<derived_dir>/spec-registry/build-meta.json`: wall-clock metadata (the only
-  non-deterministic artifact; excluded from determinism/golden checks).
-- `<derived_dir>/codebase-index/index.json`: code-as-source (output of `index`).
+Since spec 024 both views are committed as **per-unit shard trees**; the
+aggregate view is recomputed from the shard set on read, never committed.
+
+- `<derived_dir>/spec-registry/by-spec/<id>.json`: spec-as-source shards (output of `compile`).
+- `<derived_dir>/codebase-index/by-spec/<id>.json` and `.../by-package/<slug>.json`:
+  code-as-source shards (output of `index`).
+- `<derived_dir>/**/build-meta.json`: wall-clock metadata (the only
+  non-deterministic artifact; gitignored; excluded from determinism/golden checks).
 
 ## Required frontmatter
 
@@ -30,11 +34,12 @@ govern.
 `establishes`, `extends`, `refines`, `supersedes`, `amends`, `co_authority`,
 `constrains`, `references`. `origin` is a bootstrap marker, not an edge.
 
-## Authority units (v1)
+## Authority units
 
 `file` (bare string shorthand; trailing slash ⇒ subtree), `section`
-(`{file, anchor}`), `symbol` (`{id}`, resolved by the indexer). `crate`/`module`/
-`directory` are reserved for later minors.
+(`{file, anchor}`), `symbol` (`{id}`, resolved by the indexer), and `directory`/
+`crate`/`module` (added by spec 017 as an additive minor, no schema-file edit).
+Symbol resolution covers Rust + TS in v1; Python is deferred.
 
 ## The gate chain
 

@@ -243,8 +243,9 @@ A repo with domain-specific output (compliance reports, factory artifacts, a
 Claude config-hash gate) adopts spec-spine as **generic core + its own overlay
 crate**, *not* as a drop-in. The generic core deliberately omits that machinery
 (see [design/00-architecture.md](design/00-architecture.md) §10.4); the overlay
-reads `registry.json` / `index.json` via the public loaders and emits its own
-sibling artifact. See [overlay-contract.md](overlay-contract.md).
+reads the committed registry/index shard trees (`by-spec/`, `by-package/`) via
+the public loaders and emits its own sibling artifact. See
+[overlay-contract.md](overlay-contract.md).
 
 ---
 

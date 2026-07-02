@@ -15,7 +15,7 @@ The generic core deliberately omits domain-specific machinery (like compliance r
 An overlay is a separate crate or script that:
 
 1. Depends on `spec-spine-core` (and transitively `spec-spine-types`).
-2. Reads the committed generic artifacts (`registry.json`, `index.json`) via the public loaders.
+2. Reads the committed generic artifacts (the registry/index shard trees under `by-spec/` and `by-package/`) via the public loaders.
 3. Computes an enriched view.
 4. Emits a **sibling** artifact next to the generic one, typically named `<artifact>-<overlay>.json` (e.g., `registry-compliance.json`).
 

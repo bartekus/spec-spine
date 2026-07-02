@@ -1,11 +1,14 @@
 //! `spec-spine couple`: the PR-time coupling gate (spec 005).
 //!
-//! This is the only place `git` runs: it invokes `git diff --no-color -U0
-//! base...head`, parses the unified diff into a typed [`DiffInput`] (new-side
-//! hunk spans), reads the PR body for a waiver, and calls the pure
-//! `spec-spine-core` gate. Diff parsing is ported from OAP
-//! `spec-code-coupling-check/src/main.rs` (`parse_unified_diff`,
-//! `parse_hunk_header`).
+//! This is the only place `git` runs: it invokes `git -c core.quotepath=false
+//! diff --no-color -U0 --no-renames --end-of-options base...head`, parses the
+//! unified diff into a typed [`DiffInput`] (new-side hunk spans), reads the PR
+//! body for a waiver, and calls the pure `spec-spine-core` gate. Diff parsing is
+//! ported from OAP `spec-code-coupling-check/src/main.rs` (`parse_unified_diff`,
+//! `parse_hunk_header`). `--no-renames` makes a rename surface as a delete + add
+//! (so a `git mv` of a governed file cannot slip past the gate),
+//! `core.quotepath=false` keeps unicode paths matchable, and `--end-of-options`
+//! stops a crafted ref from being parsed as a git flag.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -152,7 +155,9 @@ fn git_merge_base(repo: &Path, base: &str, head: &str) -> Option<String> {
     let out = Command::new("git")
         .arg("-C")
         .arg(repo)
-        .args(["merge-base", base, head])
+        // `--end-of-options`: everything after is an operand, so a ref that looks
+        // like a flag (`--foo`) can never be parsed as a git option.
+        .args(["merge-base", "--end-of-options", base, head])
         .output()
         .ok()?;
     if !out.status.success() {
@@ -166,7 +171,8 @@ fn git_show(repo: &Path, rev: &str, path: &str) -> Option<String> {
     let out = Command::new("git")
         .arg("-C")
         .arg(repo)
-        .args(["show", &format!("{rev}:{path}")])
+        // `--end-of-options`: the `rev:path` operand can never be parsed as a flag.
+        .args(["show", "--end-of-options", &format!("{rev}:{path}")])
         .output()
         .ok()?;
     if !out.status.success() {
@@ -179,7 +185,23 @@ fn run_git_diff(repo: &Path, base: &str, head: &str) -> Result<String, Error> {
     let out = Command::new("git")
         .arg("-C")
         .arg(repo)
-        .args(["diff", "--no-color", "-U0"])
+        // `core.quotepath=false`: keep non-ASCII paths literal instead of octal
+        // C-quoting, so a governed file with a unicode/space name still matches
+        // its owning unit rather than arriving as a quoted, unmatched string.
+        .args(["-c", "core.quotepath=false"])
+        // `--no-renames`: a pure rename emits `rename from/to` with no +++/---
+        // headers and would be invisible to the parser, letting a `git mv` of a
+        // governed file slip past the gate. Disabling rename detection surfaces
+        // it as a delete of the old path + an add of the new path (both parsed as
+        // whole-file changes), so the gate evaluates both. `--end-of-options`:
+        // the `base...head` operand can never be parsed as a git flag.
+        .args([
+            "diff",
+            "--no-color",
+            "-U0",
+            "--no-renames",
+            "--end-of-options",
+        ])
         .arg(format!("{base}...{head}"))
         .output()
         .map_err(|e| Error::Io(format!("spawn git diff: {e}")))?;
@@ -306,5 +328,32 @@ mod tests {
         let d = parse_unified_diff(diff);
         let f = d.files.iter().find(|f| f.path == "gone.rs").unwrap();
         assert!(f.hunks.is_empty(), "deletion ⇒ whole-file (no hunks)");
+    }
+
+    #[test]
+    fn rename_under_no_renames_registers_both_paths() {
+        // `--no-renames` turns a rename into a delete of the old path plus an add
+        // of the new path, so BOTH surfaces reach the gate. Without it, a pure
+        // rename emits only `rename from/to` lines (no +++/---) and would be
+        // invisible: a `git mv` of a governed file could slip past coupling.
+        let diff = "diff --git a/old/mod.rs b/old/mod.rs\n\
+                    deleted file mode 100644\n\
+                    --- a/old/mod.rs\n\
+                    +++ /dev/null\n\
+                    @@ -1,3 +0,0 @@\n\
+                    diff --git a/new/mod.rs b/new/mod.rs\n\
+                    new file mode 100644\n\
+                    --- /dev/null\n\
+                    +++ b/new/mod.rs\n\
+                    @@ -0,0 +1,3 @@\n";
+        let d = parse_unified_diff(diff);
+        assert!(
+            d.files.iter().any(|f| f.path == "old/mod.rs"),
+            "vacated path must be seen"
+        );
+        assert!(
+            d.files.iter().any(|f| f.path == "new/mod.rs"),
+            "new path must be seen"
+        );
     }
 }

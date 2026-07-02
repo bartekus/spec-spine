@@ -82,7 +82,8 @@ only non-owning one (the coupling gate ignores it): `establishes`, `extends`,
 `origin.retroactive` is a bootstrap marker, not an edge. Units resolve to
 code as `file` (bare string = file shorthand; trailing `/` = subtree), `section`
 (`{file, anchor}`), or `symbol` (`{id}`, resolved by tree-sitter, Rust + TS in
-v1; Python deferred). `crate`/`module`/`directory` kinds are reserved.
+v1; Python deferred). `directory`/`crate`/`module` kinds shipped in spec 017 (an
+additive minor).
 
 Two views, joined by the gate: `compile` emits the spec-as-source registry;
 `index` emits the code-as-source index (with a per-shard staleness mechanism).

@@ -14,6 +14,7 @@
 set -euo pipefail
 
 PY_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+export PY_DIR   # read by the inline python heredocs below; must be exported before the first one
 REPO_ROOT="$(cd "$PY_DIR/.." && pwd)"
 
 say() { printf 'smoke: %s\n' "$1" >&2; }
@@ -29,7 +30,6 @@ p = pathlib.Path(os.environ["PY_DIR"]) / "pyproject.toml"
 print(tomllib.load(open(p, "rb"))["project"]["version"])
 PY
 )"
-export PY_DIR
 TARGET="$("$PYBIN" - <<'PY'
 import sys, platform
 osname = {"darwin": "darwin", "linux": "linux", "win32": "win32"}.get(sys.platform, sys.platform)

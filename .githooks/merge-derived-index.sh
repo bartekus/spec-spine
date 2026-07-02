@@ -54,13 +54,26 @@ PATHNAME="${4:-<unknown>}"
 root="$(git rev-parse --show-toplevel)"
 cd "$root"
 
-# Locate a usable spec-spine binary: prefer a release build, then debug, then
-# one already on PATH. (.exe suffix for git-bash on Windows.)
+# Locate a usable spec-spine binary: prefer a locally-built release build, then
+# debug, then one already on PATH. (.exe suffix for git-bash on Windows.)
+#
+# Security: a genuine local build under target/ is gitignored (untracked). A
+# TRACKED binary at target/release/spec-spine is a force-added payload committed
+# on some branch, not something you built. Since this driver runs during a
+# merge/rebase (potentially of an untrusted branch), refuse any tracked target/
+# candidate and fall back to PATH; that defeats the plant-a-binary attack while
+# leaving the normal build-then-merge workflow untouched.
 BIN=""
 for cand in \
   "target/release/spec-spine" "target/release/spec-spine.exe" \
   "target/debug/spec-spine" "target/debug/spec-spine.exe"; do
-  if [ -x "$cand" ]; then BIN="$cand"; break; fi
+  if [ -x "$cand" ]; then
+    if git ls-files --error-unmatch "$cand" >/dev/null 2>&1; then
+      echo "[merge-derived-index] refusing git-tracked binary '$cand' (a real build is untracked); skipping it." >&2
+      continue
+    fi
+    BIN="$cand"; break
+  fi
 done
 if [ -z "$BIN" ] && command -v spec-spine >/dev/null 2>&1; then
   BIN="spec-spine"

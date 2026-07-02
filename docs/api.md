@@ -25,7 +25,7 @@ CLI and excluded from determinism/golden checks.
 
 | Crate | Role | Depend on it when… |
 |---|---|---|
-| `spec-spine-types` | DTOs, frontmatter grammar, `Config`, schema-version constants, embedded JSON Schemas, the `Error` enum | you only need the data shapes (e.g. an overlay reading `registry.json`) |
+| `spec-spine-types` | DTOs, frontmatter grammar, `Config`, schema-version constants, embedded JSON Schemas, the `Error` enum | you only need the data shapes (e.g. an overlay reading the registry) |
 | `spec-spine-core` | the engine: `compile` / `index` / `lint` / `couple` / query + `scaffold_init` + the JSON facade | you are embedding the engine or building over the artifacts |
 | `spec-spine-cli` | the thin `spec-spine` multi-call binary | you want the command-line tool (`cargo install spec-spine-cli`) |
 
@@ -66,8 +66,8 @@ pub fn couple(cfg: &Config, repo_root: &Path,
 pub fn couple_with(cfg: &Config, registry: &Registry, index: &CodebaseIndex,
                    diff: &DiffInput, waiver: Option<&Waiver>) -> Result<CoupleReport, Error>;
 
-// Cheap staleness check: does the committed index.json's contentHash match
-// the current inputs?
+// Cheap staleness check: does the aggregate index's contentHash (folded from
+// the committed by-spec / by-package shards) match the current inputs?
 pub fn check_index_freshness(cfg: &Config, repo_root: &Path) -> Result<Freshness, Error>;
 
 // Per-slice staleness (spec 012): `name` is a configured `[index.slices]` key.
@@ -234,9 +234,9 @@ pub fn scaffold_init_json  (config_json: &str)                  -> Result<String
 - `couple_json` request: `{ "config"?: Config, "repoRoot": string, "diff":
   DiffInput, "waiver"?: { "reason": string } }`.
 - `check_freshness_json` returns `{ "fresh": bool, "expected"?, "actual"? }`.
-- `render_json` (spec 011) takes `config_json` and the committed `index.json`
+- `render_json` (spec 011) takes `config_json` and the aggregate index JSON
   text and returns the markdown projection (a JSON-encoded string).
-  `orphans_json` (spec 011) takes only the `index.json` text and returns the
+  `orphans_json` (spec 011) takes only the index JSON text and returns the
   orphaned-spec ids (a JSON array).
 
 All emitted JSON is **pretty-printed with sorted keys, LF line endings, and a

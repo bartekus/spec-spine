@@ -347,7 +347,7 @@ pub fn couple (cfg: &Config, repo_root: &Path,
 pub fn couple_with(cfg: &Config, registry: &Registry, index: &CodebaseIndex,
                    diff: &DiffInput, waiver: Option<&Waiver>) -> Result<CoupleReport, Error>;
 
-// Cheap staleness check (does committed index.json's contentHash match current inputs?).
+// Cheap staleness check (aggregate index contentHash, folded from committed shards, vs current inputs).
 pub fn check_index_freshness(cfg: &Config, repo_root: &Path) -> Result<Freshness, Error>;
 ```
 

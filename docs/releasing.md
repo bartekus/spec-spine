@@ -28,6 +28,11 @@
       that let v0.2.0's PyPI publish fail while npm/crates shipped). Schema-version
       constants in `spec-spine-types` are decoupled; bump them separately per
       [schema-versioning.md](schema-versioning.md) only if the schema changed.
+- [ ] `Cargo.lock` regenerated after the bump: `bump_version.py` rewrites the
+      three manifests but not the lockfile, so the workspace crates' `version`
+      entries in `Cargo.lock` go stale and every `--locked` command (including
+      the next checklist item) fails until you run `cargo build` (or
+      `cargo update --workspace`) and commit the resulting `Cargo.lock` change.
 - [ ] `cargo package --workspace --locked` succeeds (it cross-verifies every
       crate from its packaged sources, in dependency order: the same check CI can
       run).
@@ -194,9 +199,10 @@ platform wheel, installs it into a throwaway env with uv or pip, and runs
 
 ## 5. Determinism gate
 
-`.github/workflows/determinism.yml` proves the emitted `registry.json` and
-`index.json` (including tree-sitter symbol line-spans) are **byte-identical
-across four triples** (`x86_64-apple-darwin` is intentionally omitted: its two
+`.github/workflows/determinism.yml` proves the emitted registry + index **shard
+trees** (it folds every shard's path and content into one tree digest, incl.
+tree-sitter symbol line-spans) are **byte-identical across four triples**
+(`x86_64-apple-darwin` is intentionally omitted: its two
 dimensions, x86_64 and apple-darwin, are each proven by another leg, and the
 deprecated Intel macOS runner queues badly): the empirical backstop for the
 "identical-on-every-triple" claim, beyond merely pinning the grammars exact. The
